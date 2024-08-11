@@ -1,5 +1,7 @@
 import sys
 import json
+import qrcode
+import os
 from PyQt6.QtWidgets import (
     QMainWindow,
     QApplication,
@@ -9,7 +11,8 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QFileDialog,
     QComboBox,
-    QTableView
+    QTableView,
+    QMessageBox
 )
 from PyQt6.QtCore import QAbstractTableModel, Qt
 import pandas as pd
@@ -78,6 +81,11 @@ class MainWindow(QMainWindow):
         self.saveResultsBtn.clicked.connect(self.save_results)
         self.layout.addWidget(self.saveResultsBtn)
 
+        self.qr_generate_btn = QPushButton("QR Generate")
+        self.qr_generate_btn.clicked.connect(self.qr_generate_start)
+        self.qr_generate_btn.setEnabled(False)
+        self.layout.addWidget(self.qr_generate_btn)
+
         self.qr_btn = QPushButton("QR Reader")
         self.qr_btn.clicked.connect(self.qr_window)
         self.qr_btn.setEnabled(False)
@@ -93,9 +101,42 @@ class MainWindow(QMainWindow):
         self.update_qr_button_state()
 
     def qr_window(self):
-        # qr_reader_window = CameraViewer(self)
-        # qr_reader_window.show()
-        pass
+        qr_reader_window = CameraViewer(self)
+        qr_reader_window.qrProcessed.connect(self.handle_qr_processed)
+        qr_reader_window.show()
+        # pass
+
+    def handle_qr_processed(self, student_id, student_name):
+        self.load_sheet_data()
+        
+    def qr_generate_start(self):
+        for row_idx, row in self.df.iterrows():
+            self.generateQR(row[1:3])
+        QMessageBox.information(self,"Information","QR Generate Completed",QMessageBox.StandardButton.Ok)
+        
+    def generateQR(self,data:pd.Series):
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        file_name = f"{data.iloc[0]}_{data.iloc[1]}.png"
+
+        # QR 생성값(data)은 번호+이름
+        qr.add_data(','.join(data[0:2]))
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        path = Path(self.file_path).parent
+        qr_folder_path = os.path.join(path,"qr_folder",self.current_sheet)
+        if not os.path.exists(qr_folder_path):
+            os.makedirs(qr_folder_path)
+            
+
+        file_path = os.path.join(qr_folder_path, file_name)
+        img.save(file_path)
+        return file_path
 
     def select_file_dialog(self):
         file, _ = QFileDialog.getOpenFileName(self, 'Select File', "", "Excel Files (*.xlsx)")
@@ -135,9 +176,13 @@ class MainWindow(QMainWindow):
 
     def update_qr_button_state(self, enabled=False):
         if enabled:
+            self.qr_generate_btn.setEnabled(True)
+            self.qr_generate_btn.setStyleSheet("background-color: #4CAF50; color: white;")  # Active style
             self.qr_btn.setEnabled(True)
             self.qr_btn.setStyleSheet("background-color: #4CAF50; color: white;")  # Active style
         else:
+            self.qr_generate_btn.setEnabled(False)
+            self.qr_generate_btn.setStyleSheet("background-color: lightgray; color: gray;")  # Disabled style
             self.qr_btn.setEnabled(False)
             self.qr_btn.setStyleSheet("background-color: lightgray; color: gray;")  # Disabled style
 
