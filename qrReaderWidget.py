@@ -17,7 +17,6 @@ class CameraViewer(QDialog):
         self.file_path = self.parent().file_path
         self.setWindowTitle("Camera Viewer")
 
-        # self.processed_students = set()
         self.selected = None
 
         layout = QVBoxLayout()
@@ -27,8 +26,12 @@ class CameraViewer(QDialog):
         self.df_sheet = pd.read_excel(self.file_path, sheet_name=self.current_sheet)
         self.sheet_label = QLabel(self)
         self.sheet_label.setText(f"Current: {self.current_sheet}")
-        self.qr_label = QLabel(self)
-        layout.addWidget(self.qr_label)
+        layout.addWidget(self.sheet_label)
+
+        self.message_label = QLabel(self)
+        self.message_label.setStyleSheet("color: green;")
+        self.message_label.setVisible(False)
+        layout.addWidget(self.message_label)
 
         self.select_time = QComboBox()
         self.select_time.addItem("Select 回目")
@@ -47,6 +50,11 @@ class CameraViewer(QDialog):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
 
+        self.message_timer = QTimer()
+        self.message_timer.setSingleShot(True)
+        self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
+
+
     def update_times(self):
         self.selected = self.select_time.currentText()
         self.df_sheet[self.selected] = self.df_sheet[self.selected].astype(str)
@@ -62,7 +70,7 @@ class CameraViewer(QDialog):
             self.capture.release()  # Release the previous capture if open
         self.capture = cv2.VideoCapture(0)
         if self.capture.isOpened():
-            self.timer.start(30)  # Update every 30 ms
+            self.timer.start(100)  # Update every 30 ms
         else:
             print("Error: Unable to open camera")
 
@@ -122,6 +130,20 @@ class CameraViewer(QDialog):
         
         super().closeEvent(event)
 
+    def show_temporary_message(self, message, duration=3000):
+        if self.message_label.isVisible():
+            # If a message is already visible, stop the current timer
+            self.message_timer.stop()
+
+        self.message_label.setText(message)
+        self.message_label.setVisible(True)
+
+        # Create a QTimer to hide the message after the specified duration
+        self.message_timer = QTimer()
+        self.message_timer.setSingleShot(True)
+        self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
+        self.message_timer.start(duration)
+
     def updateAttendance(self):
         student_id = self.current_no
         student_name = self.current_name
@@ -144,11 +166,13 @@ class CameraViewer(QDialog):
             if current_value != str('o'):
                 self.df_sheet.at[student_index, self.selected] = str('o')
                 # self.processed_students.add(student_id)
-                self.qr_label.setText(f"{student_id} Attendance has been recorded.")
+                # self.qr_label.setText(f"{student_id} Attendance has been recorded.")
+                self.show_temporary_message(f"{student_id} Attendance has been recorded.")
             else:
-                self.qr_label.setText(f"{student_id} Already Checked.")
+                # self.show_temporary_message(f"{student_id} Already Checked.")
+                self.show_temporary_message(f"{student_id} Attendance has been recorded.")
         else:
-            self.qr_label.setText("Not existed in Attendance list, Please contact the administrator.")
+            self.show_temporary_message("Not existed in Attendance list, Please contact the administrator.")
         
         self.qrProcessed.emit(student_id, student_name)
 
