@@ -4,12 +4,18 @@ from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtCore import QTimer, pyqtSignal
 from pyzbar.pyzbar import decode
 from datetime import datetime
+
 import pandas as pd
+import numpy as np
+from PIL import ImageFont, ImageDraw, Image
+
+
+
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
 class CameraViewer(QDialog):
-    qrProcessed = pyqtSignal(str,str)
+    qrProcessed = pyqtSignal()
     def __init__(self, parent=None):
         super().__init__(parent)
         self.resize(800,600)
@@ -18,14 +24,17 @@ class CameraViewer(QDialog):
         self.setWindowTitle("Camera Viewer")
 
         self.selected = None
+        self.current_no = None
+        self.current_name = None
 
         layout = QVBoxLayout()
         self.setLayout(layout)
 
+        self.isChanged = False
 
         self.df_sheet = pd.read_excel(self.file_path, sheet_name=self.current_sheet)
         self.sheet_label = QLabel(self)
-        self.sheet_label.setText(f"Current: {self.current_sheet}")
+        self.sheet_label.setText(f"Current Class: {self.current_sheet}")
         layout.addWidget(self.sheet_label)
 
         self.message_label = QLabel(self)
@@ -40,6 +49,7 @@ class CameraViewer(QDialog):
         layout.addWidget(self.select_time)
 
         self.video_label = QLabel(self)
+        # self.video_label.setFixedSize(300,300)
         layout.addWidget(self.video_label)
 
         close_btn = QPushButton("Close")
@@ -70,6 +80,8 @@ class CameraViewer(QDialog):
             self.capture.release()  # Release the previous capture if open
         self.capture = cv2.VideoCapture(0)
         if self.capture.isOpened():
+            # self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 400)
+            # self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT,400)
             self.timer.start(100)  # Update every 30 ms
         else:
             print("Error: Unable to open camera")
@@ -82,11 +94,23 @@ class CameraViewer(QDialog):
         if ret:
             frame = cv2.flip(frame, 1)
             frame = self.read_frame(frame)
+
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            pil_image = Image.fromarray(rgb_image)
 
-            h, w, ch = rgb_image.shape
+            try:
+                font = ImageFont.truetype("./font/NotoSansJP-Regular.ttf",35)
+            except IOError:
+                font = ImageFont.load_default()
+            
+            draw = ImageDraw.Draw(pil_image)
+            draw.text((30,30), f"{self.current_no}_{self.current_name}", font=font, fill=(0, 0, 0))
+            # print( f"{self.current_no}_{self.current_name}")
+            image = np.asarray(pil_image)
 
-            q_img = QImage(rgb_image.data, w, h, ch * w, QImage.Format.Format_RGB888)
+            h, w, ch = image.shape
+
+            q_img = QImage(image.data, w, h, ch * w, QImage.Format.Format_RGB888)
             self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
     def read_frame(self, frame):
@@ -96,15 +120,9 @@ class CameraViewer(QDialog):
                 x, y, w, h = barcode.rect
                 barcode_info = barcode.data.decode('utf-8')
                 barcode_array = barcode_info.split(',') # 학번, 이름
-                timestamp = datetime.now()
-                self.current_day = timestamp.strftime("%A")  # 요일
-                self.current_date = timestamp.strftime("%Y-%m-%d")  # 년월일
-                display_text = f"{barcode_array[0]}_{barcode_array[1]}: Checked"
-                self.current_no = barcode_array[0]
-                self.current_name = barcode_array[1]
+                self.current_no = barcode_array[0] # 번호
+                self.current_name = barcode_array[1] # 이름
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-                cv2.putText(frame, display_text, (x, y - 20), font, 0.5, (0, 0, 255), 1)
-                # if self.current_no not in self.processed_students:
                 self.updateAttendance()
             return frame
         except Exception as e:
@@ -121,6 +139,13 @@ class CameraViewer(QDialog):
             self.capture.release()
         self.timer.stop()
 
+        # 변경사항이 있으면 x 채우고 저장,없으면 그냥 닫기
+        if not self.isChanged:
+            super().closeEvent(event)
+            return
+
+        self.df_sheet.rename(index = {self.selected:self.update_column_name(self.selected)}, inplace = True)
+
         if self.current_sheet and self.selected:
             for idx, row in self.df_sheet.iterrows():
                 if row[self.selected] != str('o'):
@@ -129,6 +154,18 @@ class CameraViewer(QDialog):
             self.df_sheet.to_excel(writer, sheet_name=self.current_sheet, index=False)
         
         super().closeEvent(event)
+        self.qrProcessed.emit()
+
+    def update_column_name(self, col_name):
+        start_idx = col_name.find('(')
+        end_idx = col_name.find(')')
+        current_date = datetime.now().strftime("%y%m%d")
+        if start_idx != -1 and end_idx != -1:
+            new_name = f"{col_name[:start_idx]({current_date})}"
+            return new_name
+        else:
+            new_name = f"{col_name}({current_date})"
+            return new_name
 
     def show_temporary_message(self, message, duration=3000):
         if self.message_label.isVisible():
@@ -150,7 +187,7 @@ class CameraViewer(QDialog):
 
         if not student_id or not student_name:
             return
-
+        
         # Ensure IDs and names are stripped of extra whitespace
         self.df_sheet['学籍番号'] = self.df_sheet['学籍番号'].astype(str).str.strip()
         self.df_sheet['氏名'] = self.df_sheet['氏名'].astype(str).str.strip()
@@ -169,10 +206,13 @@ class CameraViewer(QDialog):
                 # self.qr_label.setText(f"{student_id} Attendance has been recorded.")
                 self.show_temporary_message(f"{student_id} Attendance has been recorded.")
             else:
-                # self.show_temporary_message(f"{student_id} Already Checked.")
-                self.show_temporary_message(f"{student_id} Attendance has been recorded.")
+                self.show_temporary_message(f"{student_id} Already Checked.")
+                # self.show_temporary_message(f"{student_id} Attendance has been recorded.")
+                return
         else:
             self.show_temporary_message("Not existed in Attendance list, Please contact the administrator.")
+            return
+        if self.isChanged == False:
+            self.isChanged = True
         
-        self.qrProcessed.emit(student_id, student_name)
 

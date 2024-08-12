@@ -40,7 +40,10 @@ class PandasTableModel(QAbstractTableModel):
         if not index.isValid():
             return None
         if role == Qt.ItemDataRole.DisplayRole:
-            return str(self._dataframe.iloc[index.row(), index.column()])
+            value = self._dataframe.iloc[index.row(), index.column()]
+            if pd.isna(value):
+                return ""
+            return str(value)
         return None
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
@@ -106,7 +109,7 @@ class MainWindow(QMainWindow):
         qr_reader_window.show()
         # pass
 
-    def handle_qr_processed(self, student_id, student_name):
+    def handle_qr_processed(self):
         self.load_sheet_data()
         
     def qr_generate_start(self):
@@ -201,18 +204,18 @@ class MainWindow(QMainWindow):
                         student_id = df.columns[1]
                         student_name = df.columns[2]
                         attendance_columns = [col for col in df.columns if "回目" in col]
-                        
+                        total_day = len(attendance_columns)
                         for _, row in df.iterrows():
                             grade = row[student_grade]
                             id = row[student_id]
                             name = row[student_name]
                             count_x = row[attendance_columns].eq('x').sum()
-                            results.append([grade, id,name, sheet_name, count_x])
+                            results.append([sheet_name,grade, id,name, count_x, total_day])
                     except Exception as e:
                         print(f"Error processing sheet {sheet_name}: {e}")
 
                 # 결과를 DataFrame으로 변환
-            result_df = pd.DataFrame(results, columns=['学年', '学籍番号','氏名','クラス名', '欠席数']) # 학년, 학번, 이름, 수업명, 결석 수 
+            result_df = pd.DataFrame(results, columns=['クラス名', '学年', '学籍番号','氏名','欠席数','授業回数']) # 수업명, 학년, 학번, 이름, [가타가나 이름], 결석 수, [총 수업일 수]
             
             # 결과를 새로운 시트로 저장
             with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
