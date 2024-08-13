@@ -39,8 +39,8 @@ class CameraViewer(QDialog):
         self.setWindowIcon(QIcon(logo_path))
         logging.debug("logo_path:", logo_path)
         self.selected = None
-        self.current_no = None
-        self.current_name = None
+        self.current_no = ""
+        self.current_name = ""
 
         layout = QVBoxLayout()
         self.setLayout(layout)
