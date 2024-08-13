@@ -1,18 +1,32 @@
 import cv2
+import os
+import sys
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox
 from PyQt6.QtGui import QImage, QPixmap, QIcon
 from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from pyzbar.pyzbar import decode
 from datetime import datetime
 
+import logging
 import pandas as pd
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
 
+# logging.basicConfig(level=logging.DEBUG)
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath('.')
+    return os.path.join(base_path, relative_path)
 
-
-
-font = cv2.FONT_HERSHEY_SIMPLEX
+font_path = resource_path("meiryo.ttc")
+logo_path = resource_path("scan_logo.png")
+logging.debug("font_path:", font_path)
+try:
+    font = ImageFont.truetype(font_path,25)
+except IOError:
+    font = ImageFont.load_default()
 
 class CameraViewer(QDialog):
     qrProcessed = pyqtSignal()
@@ -22,8 +36,8 @@ class CameraViewer(QDialog):
         self.current_sheet = self.parent().current_sheet
         self.file_path = self.parent().file_path
         self.setWindowTitle("Camera Viewer")
-        self.setWindowIcon(QIcon("./windowIcon"))
-
+        self.setWindowIcon(QIcon(logo_path))
+        logging.debug("logo_path:", logo_path)
         self.selected = None
         self.current_no = None
         self.current_name = None
@@ -129,11 +143,6 @@ class CameraViewer(QDialog):
 
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             pil_image = Image.fromarray(rgb_image)
-
-            try:
-                font = ImageFont.truetype("./font/meiryo.ttc",25)
-            except IOError:
-                font = ImageFont.load_default()
             
             draw = ImageDraw.Draw(pil_image)
 
@@ -142,16 +151,7 @@ class CameraViewer(QDialog):
             bg_color = (0,0,0)
             draw.rectangle([(150,30), (490,100)],fill = bg_color)
             draw.text((160,33), text, font=font, fill=text_color)
-            # print( f"{self.current_no}_{self.current_name}")
             image = np.asarray(pil_image)
-
-            # border_thickness = 3
-            # border_color = (255, 0, 0)  # Red border
-            # draw.rectangle(
-            #     [(0, 0), (pil_image.width - 1, pil_image.height - 1)],
-            #     outline=border_color,
-            #     width=border_thickness
-            # )
 
             h, w, ch = image.shape
             # print(h, w) # 480 x 640

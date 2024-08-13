@@ -118,11 +118,15 @@ class MainWindow(QMainWindow):
         self.load_sheet_data()
         
     def qr_generate_start(self):
+        path = Path(self.file_path).parent
+        qr_folder_path = os.path.join(path,"qr_folder",self.current_sheet)
+        if not os.path.exists(qr_folder_path):
+            os.makedirs(qr_folder_path)
         for row_idx, row in self.df.iterrows():
-            self.generateQR(row[1:3])
+            self.generateQR(row[1:3], qr_folder_path)
         QMessageBox.information(self,"Information","QR Generate Completed",QMessageBox.StandardButton.Ok)
         
-    def generateQR(self,data:pd.Series):
+    def generateQR(self,data:pd.Series, qr_folder_path):
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -136,12 +140,7 @@ class MainWindow(QMainWindow):
         qr.make(fit=True)
         
         img = qr.make_image(fill_color="black", back_color="white")
-        path = Path(self.file_path).parent
-        qr_folder_path = os.path.join(path,"qr_folder",self.current_sheet)
-        if not os.path.exists(qr_folder_path):
-            os.makedirs(qr_folder_path)
-            
-
+        
         file_path = os.path.join(qr_folder_path, file_name)
         img.save(file_path)
         return file_path
@@ -168,6 +167,7 @@ class MainWindow(QMainWindow):
                 print(f"Error loading sheet names: {e}")
 
     def load_sheet_data(self):
+
         if self.file_path:
             self.current_sheet = self.sheet_combo.currentText()
             if self.current_sheet != "Select Sheet" and self.current_sheet != "":
@@ -232,9 +232,13 @@ class MainWindow(QMainWindow):
             print("No file selected.")
 
     def save_settings(self):
-        settings = {"file_path": self.file_path}
+        settings = {
+            "file_path": self.file_path,
+            "current_sheet": self.current_sheet
+        }
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f)
+
 
     def load_settings(self):
         if Path(SETTINGS_FILE).exists():
