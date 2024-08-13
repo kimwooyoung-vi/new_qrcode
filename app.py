@@ -12,8 +12,9 @@ from PyQt6.QtWidgets import (
     QFileDialog,
     QComboBox,
     QTableView,
-    QMessageBox
+    QMessageBox,
 )
+from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QAbstractTableModel, Qt
 import pandas as pd
 from pathlib import Path
@@ -59,6 +60,7 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Attendance Help")
+        self.setWindowIcon(QIcon("./vision_logo.png"))
         self.resize(800, 600)
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
@@ -78,6 +80,9 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.sheet_combo)
 
         self.table_view = QTableView()
+        self.table_view.setSizeAdjustPolicy(QTableView.SizeAdjustPolicy.AdjustToContents)
+        self.table_view.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
+
         self.layout.addWidget(self.table_view)
 
         self.saveResultsBtn = QPushButton("Save Results")
@@ -170,6 +175,7 @@ class MainWindow(QMainWindow):
                     self.df = pd.read_excel(self.file_path, sheet_name=self.current_sheet)
                     model = PandasTableModel(self.df)
                     self.table_view.setModel(model)
+                    self.table_view.resizeColumnsToContents()
                     if "出席調査" in self.current_sheet:
                         self.update_qr_button_state(False)
                     else:

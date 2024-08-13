@@ -1,7 +1,7 @@
 import cv2
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QComboBox
-from PyQt6.QtGui import QImage, QPixmap
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox
+from PyQt6.QtGui import QImage, QPixmap, QIcon
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from pyzbar.pyzbar import decode
 from datetime import datetime
 
@@ -22,6 +22,7 @@ class CameraViewer(QDialog):
         self.current_sheet = self.parent().current_sheet
         self.file_path = self.parent().file_path
         self.setWindowTitle("Camera Viewer")
+        self.setWindowIcon(QIcon("./windowIcon"))
 
         self.selected = None
         self.current_no = None
@@ -48,13 +49,25 @@ class CameraViewer(QDialog):
         self.load_times()
         layout.addWidget(self.select_time)
 
+        video_layout = QHBoxLayout()
+        video_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         self.video_label = QLabel(self)
-        # self.video_label.setFixedSize(300,300)
-        layout.addWidget(self.video_label)
+        self.video_label.setMinimumSize(640,480)
+        self.video_label.setStyleSheet("border: 2px solid black;")
+
+        video_layout.addWidget(self.video_label)
+        layout.addLayout(video_layout)
 
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.close_camera)
         layout.addWidget(close_btn)
+
+        # self.loading_movie = QMovie("./loading1.gif")
+        # self.loading_movie.start()
+        # self.video_label.setMovie(self.loading_movie)
+        # self.show_loading()
+        # self.init_timer = QTimer()
 
         self.capture = None
         self.timer = QTimer()
@@ -64,27 +77,45 @@ class CameraViewer(QDialog):
         self.message_timer.setSingleShot(True)
         self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
 
+        self.camera_init = False
 
     def update_times(self):
         self.selected = self.select_time.currentText()
         self.df_sheet[self.selected] = self.df_sheet[self.selected].astype(str)
         if self.selected != "Select 回目":
+            # self.show_loading()
             self.start_camera()
 
     def load_times(self):
         total_time = [col for col in self.df_sheet.columns if "回目" in col]
         self.select_time.addItems(total_time)
 
+    # def show_loading(self):
+        
+    #     self.video_label.setVisible(False)
+
+    # def hide_loading(self):
+    #     self.loading_movie.stop()
+    #     self.video_label.setVisible(True)
+        
+
     def start_camera(self):
         if self.capture and self.capture.isOpened():
             self.capture.release()  # Release the previous capture if open
         self.capture = cv2.VideoCapture(0)
         if self.capture.isOpened():
-            # self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 400)
-            # self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT,400)
+            self.camera_init = False
             self.timer.start(100)  # Update every 30 ms
+            
         else:
             print("Error: Unable to open camera")
+
+    # def check_camera_init(self):
+    #     if self.capture and self.capture.isOpened():
+    #         self.camera_init = True
+    #         self.hide_loading()
+    #     else:
+    #         print("Camera not init yet")
 
     def update_frame(self):
         if not self.capture or not self.capture.isOpened():
@@ -92,6 +123,7 @@ class CameraViewer(QDialog):
 
         ret, frame = self.capture.read()
         if ret:
+            # frame = cv2.resize(frame,(256,256),interpolation=cv2.INTER_AREA)
             frame = cv2.flip(frame, 1)
             frame = self.read_frame(frame)
 
@@ -99,17 +131,30 @@ class CameraViewer(QDialog):
             pil_image = Image.fromarray(rgb_image)
 
             try:
-                font = ImageFont.truetype("./font/NotoSansJP-Regular.ttf",35)
+                font = ImageFont.truetype("./font/meiryo.ttc",25)
             except IOError:
                 font = ImageFont.load_default()
             
             draw = ImageDraw.Draw(pil_image)
-            draw.text((30,30), f"{self.current_no}_{self.current_name}", font=font, fill=(0, 0, 0))
+
+            text = f"学籍番号: {self.current_no}\n氏名: {self.current_name}"
+            text_color = (255,255,255)
+            bg_color = (0,0,0)
+            draw.rectangle([(150,30), (490,100)],fill = bg_color)
+            draw.text((160,33), text, font=font, fill=text_color)
             # print( f"{self.current_no}_{self.current_name}")
             image = np.asarray(pil_image)
 
-            h, w, ch = image.shape
+            # border_thickness = 3
+            # border_color = (255, 0, 0)  # Red border
+            # draw.rectangle(
+            #     [(0, 0), (pil_image.width - 1, pil_image.height - 1)],
+            #     outline=border_color,
+            #     width=border_thickness
+            # )
 
+            h, w, ch = image.shape
+            # print(h, w) # 480 x 640
             q_img = QImage(image.data, w, h, ch * w, QImage.Format.Format_RGB888)
             self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
@@ -122,7 +167,7 @@ class CameraViewer(QDialog):
                 barcode_array = barcode_info.split(',') # 학번, 이름
                 self.current_no = barcode_array[0] # 번호
                 self.current_name = barcode_array[1] # 이름
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
                 self.updateAttendance()
             return frame
         except Exception as e:
@@ -144,7 +189,10 @@ class CameraViewer(QDialog):
             super().closeEvent(event)
             return
 
-        self.df_sheet.rename(index = {self.selected:self.update_column_name(self.selected)}, inplace = True)
+        # self.df_sheet.rename(index = {self.selected:self.update_column_name(self.selected)}, inplace = True)
+        newName = self.update_column_name(self.selected)
+        print(newName)
+
 
         if self.current_sheet and self.selected:
             for idx, row in self.df_sheet.iterrows():
