@@ -1,6 +1,8 @@
 import cv2
+import re
 import os
 import sys
+from pathlib import Path
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox
 from PyQt6.QtGui import QImage, QPixmap, QIcon
 from PyQt6.QtCore import QTimer, pyqtSignal, Qt
@@ -8,9 +10,11 @@ from pyzbar.pyzbar import decode
 from datetime import datetime
 
 import logging
+import json
 import pandas as pd
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
+date_format = r"^\(\d{6}\)$"
 
 # logging.basicConfig(level=logging.DEBUG)
 def resource_path(relative_path):
@@ -27,6 +31,8 @@ try:
     font = ImageFont.truetype(font_path,25)
 except IOError:
     font = ImageFont.load_default()
+
+META_FILE = "metainfo.json"
 
 class CameraViewer(QDialog):
     qrProcessed = pyqtSignal()
@@ -58,9 +64,8 @@ class CameraViewer(QDialog):
         layout.addWidget(self.message_label)
 
         self.select_time = QComboBox()
-        self.select_time.addItem("Select 回目")
-        self.select_time.currentIndexChanged.connect(self.update_times)
         self.load_times()
+        self.select_time.currentIndexChanged.connect(self.update_times)
         layout.addWidget(self.select_time)
 
         video_layout = QHBoxLayout()
@@ -94,16 +99,26 @@ class CameraViewer(QDialog):
         self.camera_init = False
 
     def update_times(self):
-        self.selected = self.select_time.currentText()
+        selected_text = self.select_time.currentText()
+        clean_text = re.sub(date_format, "", selected_text).strip()
+        self.selected  = clean_text
         self.df_sheet[self.selected] = self.df_sheet[self.selected].astype(str)
         if self.selected != "Select 回目":
             # self.show_loading()
             self.start_camera()
 
     def load_times(self):
+        # if Path(META_FILE).exists():
+        #     with open(META_FILE,"r") as file:
+        #         data = json.load(file)
+        #         self.select_time.addItem("Select 回目")
+        #         self.select_time.addItems(total_time)
+        #     return
+        # else:
+        self.select_time.addItem("Select 回目")
         total_time = [col for col in self.df_sheet.columns if "回目" in col]
         self.select_time.addItems(total_time)
-
+            
     # def show_loading(self):
         
     #     self.video_label.setVisible(False)
@@ -124,12 +139,6 @@ class CameraViewer(QDialog):
         else:
             print("Error: Unable to open camera")
 
-    # def check_camera_init(self):
-    #     if self.capture and self.capture.isOpened():
-    #         self.camera_init = True
-    #         self.hide_loading()
-    #     else:
-    #         print("Camera not init yet")
 
     def update_frame(self):
         if not self.capture or not self.capture.isOpened():
@@ -154,7 +163,6 @@ class CameraViewer(QDialog):
             image = np.asarray(pil_image)
 
             h, w, ch = image.shape
-            # print(h, w) # 480 x 640
             q_img = QImage(image.data, w, h, ch * w, QImage.Format.Format_RGB888)
             self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
@@ -189,18 +197,16 @@ class CameraViewer(QDialog):
             super().closeEvent(event)
             return
 
-        # self.df_sheet.rename(index = {self.selected:self.update_column_name(self.selected)}, inplace = True)
-        newName = self.update_column_name(self.selected)
-        print(newName)
-
-
         if self.current_sheet and self.selected:
             for idx, row in self.df_sheet.iterrows():
                 if row[self.selected] != str('o'):
                     self.df_sheet.at[idx, self.selected] = str('x')
+        if self.df_sheet[self.selected][0] == str('x'):
+            date_now = datetime.now().strftime('%Y/%m/%d')
+            self.df_sheet.at[0,self.selected] = str(date_now)
         with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
             self.df_sheet.to_excel(writer, sheet_name=self.current_sheet, index=False)
-        
+        # self.save_metas()
         super().closeEvent(event)
         self.qrProcessed.emit()
 
@@ -262,5 +268,31 @@ class CameraViewer(QDialog):
             return
         if self.isChanged == False:
             self.isChanged = True
-        
+    
+    # def save_metas(self):
+    #     # Check if META_FILE exists and read its content
+    #     if Path(META_FILE).exists():
+    #         with open(META_FILE, "r") as file:
+    #             data = json.load(file)
+    #     else:
+    #         data = dict()
 
+    #     # Ensure the current sheet key exists in the data dictionary
+    #     if self.current_sheet not in data:
+    #         data[self.current_sheet] = dict()
+
+    #     # Ensure the selected key exists in the current sheet
+    #     if self.selected not in data[self.current_sheet]:
+    #         data[self.current_sheet][self.selected] = ""
+
+    #     # Get current date
+    #     current_date = datetime.now().strftime("%y%m%d")
+
+    #     # Update the date for the selected key
+    #     if data[self.current_sheet][self.selected] != current_date:
+    #         print(current_date)
+    #         data[self.current_sheet][self.selected] = current_date
+
+    #         # Write updated data back to META_FILE
+    #         with open(META_FILE, "w") as file:
+    #             json.dump(data, file, indent=4)

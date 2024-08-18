@@ -159,6 +159,9 @@ class MainWindow(QMainWindow):
             try:
                 excel_file = pd.ExcelFile(self.file_path)
                 self.sheet_names = excel_file.sheet_names
+                for i in self.sheet_names:
+                    if '出席調査' not in i:
+                        self.add_date_column(i)
                 self.sheet_combo.clear()
                 self.sheet_combo.addItem("Select Sheet")
                 self.sheet_combo.addItems(self.sheet_names)
@@ -167,10 +170,13 @@ class MainWindow(QMainWindow):
                 print(f"Error loading sheet names: {e}")
 
     def load_sheet_data(self):
-
         if self.file_path:
             self.current_sheet = self.sheet_combo.currentText()
             if self.current_sheet != "Select Sheet" and self.current_sheet != "":
+                # 헤더 바로 밑에 날짜 추가
+                # 날짜 넣을 곳 있으면 넘어가고
+                # 없으면 추가
+                    
                 try:
                     self.df = pd.read_excel(self.file_path, sheet_name=self.current_sheet)
                     model = PandasTableModel(self.df)
@@ -182,6 +188,22 @@ class MainWindow(QMainWindow):
                         self.update_qr_button_state(True)
                 except Exception as e:
                     print(f"Error loading sheet data: {e}")
+
+    def add_date_column(self, sheet_name):
+        # try:
+            df = pd.read_excel(self.file_path, sheet_name = sheet_name)
+            if df['学年'][0] != '年月日':
+                # print(df['学年'][0])
+                # 이곳에 빈열 추가
+                empty = pd.DataFrame(index=range(0,1))
+                empty.loc[0,'学年'] = '年月日'
+                df = pd.concat([empty,df], axis=0)
+                with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
+                    df.to_excel(writer,sheet_name=sheet_name, index=False)
+
+
+        # except Exception as e:
+        #     print(e)
 
     def update_qr_button_state(self, enabled=False):
         if enabled:
