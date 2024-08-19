@@ -4,7 +4,7 @@
 a = Analysis(
     ['app.py'],
     pathex=[],
-    binaries=[('./dlls/libiconv.dll', 'pyzbar'), ('./dlls/libzbar-64.dll', 'pyzbar'),('./dlls/qwindows.dll,'qwindows')],
+    binaries=[('./dlls/libiconv.dll', 'pyzbar'), ('./dlls/libzbar-64.dll', 'pyzbar'),('./dlls/qwindows.dll','qwindows')],
     datas=[
         ('./meiryo.ttc','./'),
         ('./scan_logo.png','./'),
