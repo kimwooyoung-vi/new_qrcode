@@ -51,4 +51,4 @@ jobs:
           spec: 'QRCode.spec'
           requirements: 'requirements.txt'
           upload_exe_with_name: 'QRexe'
-          options: --onefile, --name "My App", --windowed
+          options: --onefile --name "My App" --windowed

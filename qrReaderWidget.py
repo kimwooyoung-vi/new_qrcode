@@ -40,7 +40,7 @@ class CameraViewer(QDialog):
     processing_interval = 2
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.resize(800,600)
+        self.resize(600,600)
         self.current_sheet = self.parent().current_sheet
         self.file_path = self.parent().file_path
         self.setWindowTitle("Camera Viewer")
@@ -57,13 +57,14 @@ class CameraViewer(QDialog):
 
         self.df_sheet = pd.read_excel(self.file_path, sheet_name=self.current_sheet)
         self.sheet_label = QLabel(self)
+        self.sheet_label.setFont(QFont("meiryo.ttc",15))
         self.sheet_label.setText(f"Current Class: {self.current_sheet}")
         layout.addWidget(self.sheet_label)
 
         self.message_label = QLabel(self)
         self.message_label.setStyleSheet("color: green;")
-        self.message_label.setVisible(False)
         self.message_label.setFont(QFont("meiryo.ttc",20))
+        self.message_label.setText(" ")
         layout.addWidget(self.message_label)
 
         self.select_time = QComboBox()
@@ -98,6 +99,11 @@ class CameraViewer(QDialog):
         self.message_timer = QTimer()
         self.message_timer.setSingleShot(True)
         self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
+
+        
+        self.pil_timer = QTimer()
+        self.pil_visible = False
+        self.pil_timer.timeout.connect(self.off_text_visibility)
 
         self.camera_init = False
 
@@ -142,6 +148,9 @@ class CameraViewer(QDialog):
         else:
             print("Error: Unable to open camera")
 
+    def off_text_visibility(self):
+        self.pil_visible = False
+
     def update_frame(self):
         if not self.capture or not self.capture.isOpened():
             return
@@ -153,22 +162,20 @@ class CameraViewer(QDialog):
             frame = self.read_frame(frame)
 
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(rgb_image)
+            # pil_image = Image.fromarray(rgb_image)
             
-            draw = ImageDraw.Draw(pil_image)
-
-            text = f"学籍番号: {self.current_no}\n氏名: {self.current_name}"
-            text_color = (255,255,255)
-            bg_color = (0,0,0)
-            draw.rectangle([(150,30), (490,100)],fill = bg_color)
-            draw.text((160,33), text, font=font, fill=text_color)
+            # draw = ImageDraw.Draw(pil_image)
+            # text = f"学籍番号: {self.current_no}\n氏名: {self.current_name}"
+            # text_color = (255,255,255)
+            # bg_color = (0,0,0)
+            # draw.rectangle([(150,30), (490,100)],fill = bg_color)
+            # draw.text((160,33), text, font=font, fill=text_color)
             
-            # pil_image = add_rounded_corners(pil_image, radius=30)
 
-            image = np.asarray(pil_image)
+            # image = np.asarray(pil_image)
 
-            h, w, ch = image.shape
-            q_img = QImage(image.data, w, h, ch * w, QImage.Format.Format_RGB888)
+            h, w, ch = rgb_image.shape
+            q_img = QImage(rgb_image.data, w, h, ch * w, QImage.Format.Format_RGB888)
             self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
     def read_frame(self, frame):
@@ -236,12 +243,11 @@ class CameraViewer(QDialog):
             self.message_timer.stop()
 
         self.message_label.setText(message)
-        self.message_label.setVisible(True)
 
         # Create a QTimer to hide the message after the specified duration
         self.message_timer = QTimer()
         self.message_timer.setSingleShot(True)
-        self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
+        self.message_timer.timeout.connect(lambda: self.message_label.setText(" "))
         self.message_timer.start(duration)
 
     def updateAttendance(self):
