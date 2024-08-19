@@ -4,12 +4,12 @@
 a = Analysis(
     ['app.py'],
     pathex=[],
-    binaries=[('./dlls/libiconv.dll', 'pyzbar'), ('./dlls/libzbar-64.dll', 'pyzbar')],
+    binaries=[('./dlls/libiconv.dll', 'pyzbar'), ('./dlls/libzbar-64.dll', 'pyzbar'),('./dlls/qwindows.dll,'qwindows')],
     datas=[
         ('./meiryo.ttc','./'),
         ('./scan_logo.png','./'),
         ],
-    hiddenimports=['cv2', 'pyzbar'],
+    hiddenimports=['cv2', 'pyzbar','qwindows'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

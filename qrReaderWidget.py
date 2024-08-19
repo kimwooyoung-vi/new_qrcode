@@ -4,13 +4,13 @@ import os
 import sys
 from pathlib import Path
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox
-from PyQt6.QtGui import QImage, QPixmap, QIcon
+from PyQt6.QtGui import QImage, QPixmap, QIcon, QFont
 from PyQt6.QtCore import QTimer, pyqtSignal, Qt
 from pyzbar.pyzbar import decode
 from datetime import datetime
 
 import logging
-import json
+import time
 import pandas as pd
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
@@ -36,6 +36,8 @@ META_FILE = "metainfo.json"
 
 class CameraViewer(QDialog):
     qrProcessed = pyqtSignal()
+    last_processed_time = 0
+    processing_interval = 2
     def __init__(self, parent=None):
         super().__init__(parent)
         self.resize(800,600)
@@ -61,6 +63,7 @@ class CameraViewer(QDialog):
         self.message_label = QLabel(self)
         self.message_label.setStyleSheet("color: green;")
         self.message_label.setVisible(False)
+        self.message_label.setFont(QFont("meiryo.ttc",20))
         layout.addWidget(self.message_label)
 
         self.select_time = QComboBox()
@@ -139,7 +142,6 @@ class CameraViewer(QDialog):
         else:
             print("Error: Unable to open camera")
 
-
     def update_frame(self):
         if not self.capture or not self.capture.isOpened():
             return
@@ -160,6 +162,9 @@ class CameraViewer(QDialog):
             bg_color = (0,0,0)
             draw.rectangle([(150,30), (490,100)],fill = bg_color)
             draw.text((160,33), text, font=font, fill=text_color)
+            
+            # pil_image = add_rounded_corners(pil_image, radius=30)
+
             image = np.asarray(pil_image)
 
             h, w, ch = image.shape
@@ -168,15 +173,19 @@ class CameraViewer(QDialog):
 
     def read_frame(self, frame):
         try:
-            barcodes = decode(frame)
-            for barcode in barcodes:
-                x, y, w, h = barcode.rect
-                barcode_info = barcode.data.decode('utf-8')
-                barcode_array = barcode_info.split(',') # 학번, 이름
-                self.current_no = barcode_array[0] # 번호
-                self.current_name = barcode_array[1] # 이름
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
-                self.updateAttendance()
+            current_time = time.time()
+            if current_time - self.last_processed_time > self.processing_interval:
+                barcodes = decode(frame)
+                for barcode in barcodes:
+                    x, y, w, h = barcode.rect
+                    barcode_info = barcode.data.decode('utf-8')
+                    barcode_array = barcode_info.split(',') # 학번, 이름
+                    self.current_no = barcode_array[0] # 번호
+                    self.current_name = barcode_array[1] # 이름
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
+                    self.updateAttendance()
+                    self.last_processed_time = current_time
+                return frame
             return frame
         except Exception as e:
             print(e)
@@ -258,10 +267,10 @@ class CameraViewer(QDialog):
                 self.df_sheet.at[student_index, self.selected] = str('o')
                 # self.processed_students.add(student_id)
                 # self.qr_label.setText(f"{student_id} Attendance has been recorded.")
-                self.show_temporary_message(f"{student_id} Attendance has been recorded.")
+                self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
             else:
-                self.show_temporary_message(f"{student_id} Already Checked.")
-                # self.show_temporary_message(f"{student_id} Attendance has been recorded.")
+                # self.show_temporary_message(f"{student_id}, {student_name} Already Checked.")
+                self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
                 return
         else:
             self.show_temporary_message("Not existed in Attendance list, Please contact the administrator.")
@@ -296,3 +305,13 @@ class CameraViewer(QDialog):
     #         # Write updated data back to META_FILE
     #         with open(META_FILE, "w") as file:
     #             json.dump(data, file, indent=4)
+# def add_rounded_corners(image: Image.Image, radius: int) -> Image.Image:
+#         mask = Image.new('L', image.size, 0)
+#         draw = ImageDraw.Draw(mask)
+#         draw.rounded_rectangle([(0, 0), image.size], radius, fill=255)
+        
+#         # Apply mask to image
+#         result = Image.new('RGBA', image.size)
+#         result.paste(image, (0, 0), mask)
+        
+#         return result.convert("RGB")
