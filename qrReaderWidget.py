@@ -101,9 +101,9 @@ class CameraViewer(QDialog):
         self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
 
         
-        self.pil_timer = QTimer()
-        self.pil_visible = False
-        self.pil_timer.timeout.connect(self.off_text_visibility)
+        # self.pil_timer = QTimer()
+        # self.pil_visible = False
+        # self.pil_timer.timeout.connect(self.off_text_visibility)
 
         self.camera_init = False
 

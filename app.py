@@ -122,7 +122,7 @@ class MainWindow(QMainWindow):
         qr_folder_path = os.path.join(path,"qr_folder",self.current_sheet)
         if not os.path.exists(qr_folder_path):
             os.makedirs(qr_folder_path)
-        for row_idx, row in self.df.iterrows():
+        for row_idx, row in self.df.iloc[1:].iterrows():
             self.generateQR(row[1:3], qr_folder_path)
         QMessageBox.information(self,"Information","QR Generate Completed",QMessageBox.StandardButton.Ok)
         
