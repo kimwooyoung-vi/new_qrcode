@@ -233,7 +233,7 @@ class MainWindow(QMainWindow):
                         student_name = df.columns[2]
                         attendance_columns = [col for col in df.columns if "回目" in col]
                         total_day = len(attendance_columns)
-                        for _, row in df.iterrows():
+                        for _, row in df.iloc[1:].iterrows():
                             grade = row[student_grade]
                             id = row[student_id]
                             name = row[student_name]
