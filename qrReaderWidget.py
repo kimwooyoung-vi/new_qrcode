@@ -55,9 +55,12 @@ def resource_path(relative_path):
 
 font_path = resource_path("meiryo.ttc")
 logo_path = resource_path("scan_logo.png")
+loading_path = resource_path("loading.gif")
+
 logging.debug("font_path:", font_path)
 try:
     font = ImageFont.truetype(font_path,25)
+    message_font = ImageFont.truetype(font_path,15)
 except IOError:
     font = ImageFont.load_default()
 
@@ -87,13 +90,13 @@ class CameraViewer(QDialog):
 
         self.df_sheet = pd.read_excel(self.file_path, sheet_name=self.current_sheet)
         self.sheet_label = QLabel(self)
-        self.sheet_label.setFont(QFont("meiryo.ttc",15))
+        self.sheet_label.setFont(QFont(font_path,15))
         self.sheet_label.setText(f"Current Class: {self.current_sheet}")
         layout.addWidget(self.sheet_label)
 
         self.message_label = QLabel(self)
         self.message_label.setStyleSheet("color: green;")
-        self.message_label.setFont(QFont("meiryo.ttc",20))
+        self.message_label.setFont(QFont(font_path,20))
         self.message_label.setText(" ")
         layout.addWidget(self.message_label)
 
@@ -116,7 +119,7 @@ class CameraViewer(QDialog):
 
          # Loading label
         self.loading_label = QLabel(self)
-        self.movie = QMovie('loading.gif', QByteArray(), self)
+        self.movie = QMovie(loading_path, QByteArray(), self)
         self.movie.setCacheMode(QMovie.CacheMode.CacheAll)
 
         self.loading_label.setMovie(self.movie)
