@@ -86,12 +86,6 @@ class CameraViewer(QDialog):
         close_btn.clicked.connect(self.close_camera)
         layout.addWidget(close_btn)
 
-        # self.loading_movie = QMovie("./loading1.gif")
-        # self.loading_movie.start()
-        # self.video_label.setMovie(self.loading_movie)
-        # self.show_loading()
-        # self.init_timer = QTimer()
-
         self.capture = None
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
@@ -101,9 +95,6 @@ class CameraViewer(QDialog):
         self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
 
         
-        # self.pil_timer = QTimer()
-        # self.pil_visible = False
-        # self.pil_timer.timeout.connect(self.off_text_visibility)
 
         self.camera_init = False
 
@@ -117,13 +108,6 @@ class CameraViewer(QDialog):
             self.start_camera()
 
     def load_times(self):
-        # if Path(META_FILE).exists():
-        #     with open(META_FILE,"r") as file:
-        #         data = json.load(file)
-        #         self.select_time.addItem("Select 回目")
-        #         self.select_time.addItems(total_time)
-        #     return
-        # else:
         self.select_time.addItem("Select 回目")
         total_time = [col for col in self.df_sheet.columns if "回目" in col]
         self.select_time.addItems(total_time)
@@ -140,16 +124,13 @@ class CameraViewer(QDialog):
     def start_camera(self):
         if self.capture and self.capture.isOpened():
             self.capture.release()  # Release the previous capture if open
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture(0) # 어떤 카메라를 사용할지 선택
         if self.capture.isOpened():
             self.camera_init = False
             self.timer.start(100)  # Update every 30 ms
             
         else:
             print("Error: Unable to open camera")
-
-    def off_text_visibility(self):
-        self.pil_visible = False
 
     def update_frame(self):
         if not self.capture or not self.capture.isOpened():
@@ -162,37 +143,22 @@ class CameraViewer(QDialog):
             frame = self.read_frame(frame)
 
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # pil_image = Image.fromarray(rgb_image)
-            
-            # draw = ImageDraw.Draw(pil_image)
-            # text = f"学籍番号: {self.current_no}\n氏名: {self.current_name}"
-            # text_color = (255,255,255)
-            # bg_color = (0,0,0)
-            # draw.rectangle([(150,30), (490,100)],fill = bg_color)
-            # draw.text((160,33), text, font=font, fill=text_color)
-            
-
-            # image = np.asarray(pil_image)
-
             h, w, ch = rgb_image.shape
             q_img = QImage(rgb_image.data, w, h, ch * w, QImage.Format.Format_RGB888)
             self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
     def read_frame(self, frame):
         try:
-            current_time = time.time()
-            if current_time - self.last_processed_time > self.processing_interval:
-                barcodes = decode(frame)
-                for barcode in barcodes:
-                    x, y, w, h = barcode.rect
-                    barcode_info = barcode.data.decode('utf-8')
-                    barcode_array = barcode_info.split(',') # 학번, 이름
-                    self.current_no = barcode_array[0] # 번호
-                    self.current_name = barcode_array[1] # 이름
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
+            barcodes = decode(frame)
+            for barcode in barcodes:
+                x, y, w, h = barcode.rect
+                barcode_info = barcode.data.decode('utf-8')
+                barcode_array = barcode_info.split(',') # 학번, 이름
+                self.current_no = barcode_array[0] # 번호
+                self.current_name = barcode_array[1] # 이름
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
+                if (self.message_label.text() == " "):
                     self.updateAttendance()
-                    self.last_processed_time = current_time
-                return frame
             return frame
         except Exception as e:
             print(e)
@@ -237,7 +203,7 @@ class CameraViewer(QDialog):
             new_name = f"{col_name}({current_date})"
             return new_name
 
-    def show_temporary_message(self, message, duration=3000):
+    def show_temporary_message(self, message, duration=4000):
         if self.message_label.isVisible():
             # If a message is already visible, stop the current timer
             self.message_timer.stop()
@@ -275,8 +241,8 @@ class CameraViewer(QDialog):
                 # self.qr_label.setText(f"{student_id} Attendance has been recorded.")
                 self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
             else:
-                # self.show_temporary_message(f"{student_id}, {student_name} Already Checked.")
-                self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
+                self.show_temporary_message(f"{student_id}, {student_name} Already Checked.")
+                # self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
                 return
         else:
             self.show_temporary_message("Not existed in Attendance list, Please contact the administrator.")
@@ -284,40 +250,3 @@ class CameraViewer(QDialog):
         if self.isChanged == False:
             self.isChanged = True
     
-    # def save_metas(self):
-    #     # Check if META_FILE exists and read its content
-    #     if Path(META_FILE).exists():
-    #         with open(META_FILE, "r") as file:
-    #             data = json.load(file)
-    #     else:
-    #         data = dict()
-
-    #     # Ensure the current sheet key exists in the data dictionary
-    #     if self.current_sheet not in data:
-    #         data[self.current_sheet] = dict()
-
-    #     # Ensure the selected key exists in the current sheet
-    #     if self.selected not in data[self.current_sheet]:
-    #         data[self.current_sheet][self.selected] = ""
-
-    #     # Get current date
-    #     current_date = datetime.now().strftime("%y%m%d")
-
-    #     # Update the date for the selected key
-    #     if data[self.current_sheet][self.selected] != current_date:
-    #         print(current_date)
-    #         data[self.current_sheet][self.selected] = current_date
-
-    #         # Write updated data back to META_FILE
-    #         with open(META_FILE, "w") as file:
-    #             json.dump(data, file, indent=4)
-# def add_rounded_corners(image: Image.Image, radius: int) -> Image.Image:
-#         mask = Image.new('L', image.size, 0)
-#         draw = ImageDraw.Draw(mask)
-#         draw.rounded_rectangle([(0, 0), image.size], radius, fill=255)
-        
-#         # Apply mask to image
-#         result = Image.new('RGBA', image.size)
-#         result.paste(image, (0, 0), mask)
-        
-#         return result.convert("RGB")
