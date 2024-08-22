@@ -2,19 +2,48 @@ import cv2
 import re
 import os
 import sys
-from pathlib import Path
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox
-from PyQt6.QtGui import QImage, QPixmap, QIcon, QFont
-from PyQt6.QtCore import QTimer, pyqtSignal, Qt
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QStackedLayout, QLabel, QPushButton, QComboBox
+from PyQt6.QtGui import QImage, QPixmap, QIcon, QFont, QMovie
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt, QThread, QByteArray
 from pyzbar.pyzbar import decode
 from datetime import datetime
-
 import logging
-import time
 import pandas as pd
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
 date_format = r"^\(\d{6}\)$"
+
+class CameraThread(QThread):
+    frameCaptured = pyqtSignal(np.ndarray)
+    cameraReady = pyqtSignal()
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.capture = None
+        self.running = False
+
+    def run(self):
+        self.capture = cv2.VideoCapture(0)  # 카메라 장치 열기
+        self.running = True
+        
+        while not self.capture.isOpened():
+            cv2.waitKey(100)
+        
+        self.cameraReady.emit()
+
+        while self.running:
+            ret, frame = self.capture.read()
+            if ret:
+                # OpenCV BGR 포맷을 QImage의 RGB 포맷으로 변환
+                frame = cv2.flip(frame, 1)
+                
+                # 신호를 통해 메인 스레드에 프레임 전달
+                self.frameCaptured.emit(frame)
+
+        self.capture.release()
+
+    def stop(self):
+        self.running = False
+        self.wait()
 
 # logging.basicConfig(level=logging.DEBUG)
 def resource_path(relative_path):
@@ -40,6 +69,7 @@ class CameraViewer(QDialog):
     processing_interval = 2
     def __init__(self, parent=None):
         super().__init__(parent)
+        
         self.resize(600,600)
         self.current_sheet = self.parent().current_sheet
         self.file_path = self.parent().file_path
@@ -72,80 +102,76 @@ class CameraViewer(QDialog):
         self.select_time.currentIndexChanged.connect(self.update_times)
         layout.addWidget(self.select_time)
 
-        video_layout = QHBoxLayout()
-        video_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.stack_layout = QStackedLayout()
+        self.stack_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # video_layout = QHBoxLayout()
+        # video_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        ## 카메라 프레임 표시
         self.video_label = QLabel(self)
         self.video_label.setMinimumSize(640,480)
         self.video_label.setStyleSheet("border: 2px solid black;")
+        self.stack_layout.addWidget(self.video_label)
 
-        video_layout.addWidget(self.video_label)
-        layout.addLayout(video_layout)
+         # Loading label
+        self.loading_label = QLabel(self)
+        self.movie = QMovie('loading.gif', QByteArray(), self)
+        self.movie.setCacheMode(QMovie.CacheMode.CacheAll)
+
+        self.loading_label.setMovie(self.movie)
+        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.stack_layout.addWidget(self.loading_label)
+        # self.loading_label.setVisible(False)
+        self.movie.start()
+
+        layout.addLayout(self.stack_layout)
+        
+        self.camera_thread = CameraThread(parent=self)
+        self.camera_thread.frameCaptured.connect(self.update_frame)
+        self.camera_thread.cameraReady.connect(self.on_camera_ready)
 
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.close_camera)
         layout.addWidget(close_btn)
 
-        self.capture = None
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_frame)
-
+        # Create a QTimer to hide the message after the specified duration
         self.message_timer = QTimer()
         self.message_timer.setSingleShot(True)
-        self.message_timer.timeout.connect(lambda: self.message_label.setVisible(False))
+        self.message_timer.timeout.connect(lambda: self.message_label.setText(" "))
 
-        
 
-        self.camera_init = False
+    def show_loading(self, show=True):
+        if show:
+            self.stack_layout.setCurrentWidget(self.loading_label)
+        else:
+            self.stack_layout.setCurrentWidget(self.video_label)
+    def on_camera_ready(self):
+        self.show_loading(False)
 
     def update_times(self):
-        selected_text = self.select_time.currentText()
-        clean_text = re.sub(date_format, "", selected_text).strip()
-        self.selected  = clean_text
+        self.selected = self.select_time.currentText().strip()
         self.df_sheet[self.selected] = self.df_sheet[self.selected].astype(str)
         if self.selected != "Select 回目":
-            # self.show_loading()
+            if not self.camera_thread.isRunning():
+                self.show_loading(True)
             self.start_camera()
 
     def load_times(self):
         self.select_time.addItem("Select 回目")
         total_time = [col for col in self.df_sheet.columns if "回目" in col]
         self.select_time.addItems(total_time)
-            
-    # def show_loading(self):
-        
-    #     self.video_label.setVisible(False)
-
-    # def hide_loading(self):
-    #     self.loading_movie.stop()
-    #     self.video_label.setVisible(True)
-        
-
+    
     def start_camera(self):
-        if self.capture and self.capture.isOpened():
-            self.capture.release()  # Release the previous capture if open
-        self.capture = cv2.VideoCapture(0) # 어떤 카메라를 사용할지 선택
-        if self.capture.isOpened():
-            self.camera_init = False
-            self.timer.start(100)  # Update every 30 ms
-            
-        else:
-            print("Error: Unable to open camera")
+        if not self.camera_thread.isRunning():
+            self.camera_thread.start()
 
-    def update_frame(self):
-        if not self.capture or not self.capture.isOpened():
-            return
-
-        ret, frame = self.capture.read()
-        if ret:
-            # frame = cv2.resize(frame,(256,256),interpolation=cv2.INTER_AREA)
-            frame = cv2.flip(frame, 1)
-            frame = self.read_frame(frame)
-
-            rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = rgb_image.shape
-            q_img = QImage(rgb_image.data, w, h, ch * w, QImage.Format.Format_RGB888)
-            self.video_label.setPixmap(QPixmap.fromImage(q_img))
+    def update_frame(self, q_img:np.ndarray):
+        frame = self.read_frame(q_img)
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        q_img = QImage(rgb_image.data, w, h, ch * w, QImage.Format.Format_RGB888)
+        self.video_label.setPixmap(QPixmap.fromImage(q_img))
 
     def read_frame(self, frame):
         try:
@@ -164,15 +190,13 @@ class CameraViewer(QDialog):
             print(e)
 
     def close_camera(self):
-        if self.capture and self.capture.isOpened():
-            self.capture.release()
-        self.timer.stop()
+        self.camera_thread.stop()
+        self.camera_thread.quit()
         self.close()
 
     def closeEvent(self, event):
-        if self.capture and self.capture.isOpened():
-            self.capture.release()
-        self.timer.stop()
+        self.close_camera()
+        super().closeEvent(event)
 
         # 변경사항이 있으면 x 채우고 저장,없으면 그냥 닫기
         if not self.isChanged:
@@ -188,8 +212,7 @@ class CameraViewer(QDialog):
             self.df_sheet.at[0,self.selected] = str(date_now)
         with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
             self.df_sheet.to_excel(writer, sheet_name=self.current_sheet, index=False)
-        # self.save_metas()
-        super().closeEvent(event)
+            
         self.qrProcessed.emit()
 
     def update_column_name(self, col_name):
@@ -209,11 +232,6 @@ class CameraViewer(QDialog):
             self.message_timer.stop()
 
         self.message_label.setText(message)
-
-        # Create a QTimer to hide the message after the specified duration
-        self.message_timer = QTimer()
-        self.message_timer.setSingleShot(True)
-        self.message_timer.timeout.connect(lambda: self.message_label.setText(" "))
         self.message_timer.start(duration)
 
     def updateAttendance(self):
