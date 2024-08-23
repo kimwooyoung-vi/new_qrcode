@@ -9,6 +9,7 @@ a = Analysis(
         ('./meiryo.ttc','./'),
         ('./scan_logo.png','./'),
         ('./loading.gif','./'),
+        ('./beep.wav','./'),
         ],
     hiddenimports=['cv2', 'pyzbar','qwindows'],
     hookspath=[],

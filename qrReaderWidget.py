@@ -2,9 +2,10 @@ import cv2
 import re
 import os
 import sys
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QStackedLayout, QLabel, QPushButton, QComboBox
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QStackedLayout, QLabel, QPushButton, QComboBox
 from PyQt6.QtGui import QImage, QPixmap, QIcon, QFont, QMovie
-from PyQt6.QtCore import QTimer, pyqtSignal, Qt, QThread, QByteArray
+from PyQt6.QtCore import QTimer, pyqtSignal, Qt, QThread, QByteArray, QUrl
+from PyQt6.QtMultimedia import QSoundEffect
 from pyzbar.pyzbar import decode
 from datetime import datetime
 import logging
@@ -56,6 +57,7 @@ def resource_path(relative_path):
 font_path = resource_path("meiryo.ttc")
 logo_path = resource_path("scan_logo.png")
 loading_path = resource_path("loading.gif")
+sound_path = resource_path("beep.wav")
 
 logging.debug("font_path:", font_path)
 try:
@@ -137,6 +139,15 @@ class CameraViewer(QDialog):
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.close_camera)
         layout.addWidget(close_btn)
+
+        # sound Widget
+        self.sound = QSoundEffect()
+        self.sound.setSource(QUrl.fromLocalFile(sound_path))
+        self.sound.setLoopCount(1)
+        
+        # self.sound.play()
+        # self.sound.setLoo
+        
 
         # Create a QTimer to hide the message after the specified duration
         self.message_timer = QTimer()
@@ -229,7 +240,7 @@ class CameraViewer(QDialog):
             new_name = f"{col_name}({current_date})"
             return new_name
 
-    def show_temporary_message(self, message, duration=4000):
+    def show_temporary_message(self, message, duration=3500):
         if self.message_label.isVisible():
             # If a message is already visible, stop the current timer
             self.message_timer.stop()
@@ -261,6 +272,7 @@ class CameraViewer(QDialog):
                 # self.processed_students.add(student_id)
                 # self.qr_label.setText(f"{student_id} Attendance has been recorded.")
                 self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
+                self.sound.play()
             else:
                 self.show_temporary_message(f"{student_id}, {student_name} Already Checked.")
                 # self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
