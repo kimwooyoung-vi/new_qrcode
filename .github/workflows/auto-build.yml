@@ -14,7 +14,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.12.3'
 
       - name: Cache Python packages
         uses: actions/cache@v3
@@ -38,7 +38,7 @@ jobs:
           mkdir pyzbar
 
           # Locate the Python site-packages directory
-          $site_packages = "C:\hostedtoolcache\windows\Python\3.12.4\x64\Lib\site-packages"
+          $site_packages = "C:\hostedtoolcache\windows\Python\3.12.3\x64\Lib\site-packages"
 
           # Copy DLLs from site-packages directory to pyzbar folder
           Copy-Item -Path "$site_packages\pyzbar\libiconv.dll" -Destination "pyzbar\" -Force
