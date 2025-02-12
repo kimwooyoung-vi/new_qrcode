@@ -198,10 +198,13 @@ class MainWindow(QMainWindow):
                     model = PandasTableModel(self.df)
                     self.table_view.setModel(model) # 테이블 뷰에 QAbstractTableModel 구현체 전달
                     self.table_view.resizeColumnsToContents() # 열 너비 자동 조절
-                    if "出席調査" in self.current_sheet:
-                        self.update_qr_button_state(False) # 출석 조사가 포함된 시트명은 QR 버튼 비활성화
+                    if ("出席調査" in self.current_sheet) or ("QR" in self.current_sheet):
+                        # 출석 조사 및 QR 시트를 선택할 경우 QR 리더기능 버튼 비활성화
+                        # 위의 두 시트에서는 마지막 출석 시간을 기록하는 열이 없어서 QR 인식이 불가능
+                        self.update_qr_button_state(False)
                     else:
-                        self.update_qr_button_state(True) # 
+                        # 올바른 시트(출석 조사 시트가 아닌 경우)를 선택한 경우 QR 리더기능 버튼 활성화
+                        self.update_qr_button_state(True)
                 except Exception as e:
                     print(f"Error loading sheet data: {e}")
 

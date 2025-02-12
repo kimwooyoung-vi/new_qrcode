@@ -191,6 +191,7 @@ class GuiMainWindow:
         
         # pandas로 엑셀 파일에 학생 정보를 먼저 저장
         with pd.ExcelWriter(new_file_path, engine="openpyxl", mode='a') as writer:
+            df_students['QR']=pd.NA
             df_students.to_excel(writer, sheet_name="QR", index=False)
         self.status_bar.showMessage(f"QR코드 포함 시트 생성 완료: {new_file_path}", 1000)
 

@@ -45,3 +45,13 @@
 1. python 3.12.3 버전을 사용하였음.
 2. pip install -r requirements.txt 를 사용하여 의존성 설치.
 3. pyinstaller qr_reader_installer.spec / pyinstaller qr_sheet_create_installer.spec 을 사용하여 1~4번 기능에 해당되는 qr_sheet_create_installer 실행파일 생성 및 5번 기능에 해당되는 qr_reader 실행파일 생성.
+
+## qr_sheet_create 실행파일 메일 전송 방법
+1. 이메일 주소는 그대로 입력.
+2. 이메일 서비스의 서버와 포트는 무엇을 사용할지 몰라 일단 google 로 설정해두었음.
+3. 이메일 패스워드는 이메일 서비스 공급자가 마다 다른데, 지메일의 경우, 앱 비밀번호라는 것을 발급해서 입력해주면 전송가능함. https://sooho-kim.tistory.com/221 참고
+4. 열을 선택하거나 셀을 선택해도 중복제거한 열의 인덱스를 반환하고, 해당 열의 email와 qr 컬럼을 참고해서 메일을 전송하게됨.
+5. 전송하기전, 선택한 학생들의 수와 이름을 검증할 수 있도록 해야됨.
+## qr_reader 실행파일 qr 읽는 방법
+1. 出席調査(출석조사) 시트와 QR시트가 아닌 시트를 선택시 다음 단계로 이동.
+2. 
