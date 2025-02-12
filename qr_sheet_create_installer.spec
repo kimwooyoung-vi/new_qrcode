@@ -25,7 +25,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='main',
+    name='qr_sheet_create&email_send',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
