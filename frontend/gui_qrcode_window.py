@@ -21,7 +21,7 @@ from pathlib import Path
 from datetime import datetime
 from openpyxl import load_workbook
 
-from qrReaderWidget import CameraViewer
+from core.qr_reader.qrReaderWidget import CameraViewer
 
 # 설정 파일 경로
 SETTINGS_FILE = "settings.json"
@@ -90,15 +90,15 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.table_view)
 
         # 출석 통계 결과 저장 버튼 설정 -> 누르면 몇차시 수업을 출석했는지 표기됨.
-        self.saveResultsBtn = QPushButton("Save Results")
-        self.saveResultsBtn.clicked.connect(self.save_results)
-        self.layout.addWidget(self.saveResultsBtn)
+        # self.saveResultsBtn = QPushButton("Save Results")
+        # self.saveResultsBtn.clicked.connect(self.save_results)
+        # self.layout.addWidget(self.saveResultsBtn)
 
-        # QR 코드 생성 버튼 설정
-        self.qr_generate_btn = QPushButton("QR Generate")
-        self.qr_generate_btn.clicked.connect(self.qr_generate_start)
-        self.qr_generate_btn.setEnabled(False) # 엑셀 시트 선택이전까지 비활성화
-        self.layout.addWidget(self.qr_generate_btn)
+        # # QR 코드 생성 버튼 설정
+        # self.qr_generate_btn = QPushButton("QR Generate")
+        # self.qr_generate_btn.clicked.connect(self.qr_generate_start)
+        # self.qr_generate_btn.setEnabled(False) # 엑셀 시트 선택이전까지 비활성화
+        # self.layout.addWidget(self.qr_generate_btn)
 
         # QR 코드 읽기 버튼 설정
         self.qr_btn = QPushButton("QR Reader")
@@ -113,7 +113,7 @@ class MainWindow(QMainWindow):
         self.current_sheet= None
 
         # 저장된 설정 로드 ( 마지막 선택한 엑셀 파일경로, 시트명 )
-        self.load_settings()
+        # self.load_settings()
         self.update_qr_button_state()
 
     def qr_window(self):
@@ -137,25 +137,25 @@ class MainWindow(QMainWindow):
             self.generateQR(row[1:3], qr_folder_path) # 차례대로 읽어 QR 코드 생성
         QMessageBox.information(self,"Information","QR Generate Completed",QMessageBox.StandardButton.Ok)
         
-    def generateQR(self,data:pd.Series, qr_folder_path):
-        # qrcode 라이브러리를 사용하는 위치.
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        file_name = f"{data.iloc[0]}_{data.iloc[1]}.png"
+    # def generateQR(self,data:pd.Series, qr_folder_path):
+    #     # qrcode 라이브러리를 사용하는 위치.
+    #     qr = qrcode.QRCode(
+    #         version=1,
+    #         error_correction=qrcode.constants.ERROR_CORRECT_L,
+    #         box_size=10,
+    #         border=4,
+    #     )
+    #     file_name = f"{data.iloc[0]}_{data.iloc[1]}.png"
 
-        # QR 생성값(data)은 번호+이름
-        qr.add_data(','.join(data[0:2]))
-        qr.make(fit=True)
+    #     # QR 생성값(data)은 번호+이름
+    #     qr.add_data(','.join(data[0:2]))
+    #     qr.make(fit=True)
         
-        img = qr.make_image(fill_color="black", back_color="white")
+    #     img = qr.make_image(fill_color="black", back_color="white")
         
-        file_path = os.path.join(qr_folder_path, file_name)
-        img.save(file_path)
-        return file_path
+    #     file_path = os.path.join(qr_folder_path, file_name)
+    #     img.save(file_path)
+    #     return file_path
 
     def select_file_dialog(self):
         # 엑셀 파일 선택 창 호출
@@ -164,7 +164,7 @@ class MainWindow(QMainWindow):
             file_without_extension = Path(file).stem
             self.label.setText(f"Selected File: {file_without_extension}")
             self.file_path = file
-            self.save_settings()
+            # self.save_settings()
             self.load_sheet_names()
 
     def load_sheet_names(self):
@@ -173,9 +173,9 @@ class MainWindow(QMainWindow):
             try:
                 excel_file = pd.ExcelFile(self.file_path)
                 self.sheet_names = excel_file.sheet_names
-                for i in self.sheet_names:
-                    if '出席調査' not in i:
-                        self.add_date_column(i)
+                # for i in self.sheet_names:
+                #     if '出席調査' not in i:
+                #         self.add_date_column(i)
                 self.sheet_combo.clear()
                 self.sheet_combo.addItem("Select Sheet")
                 self.sheet_combo.addItems(self.sheet_names)
@@ -205,29 +205,29 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     print(f"Error loading sheet data: {e}")
 
-    def add_date_column(self, sheet_name):
-        # 출석부 첫 행에 요일 정보 추가
-        df = pd.read_excel(self.file_path, sheet_name = sheet_name)
+    # def add_date_column(self, sheet_name):
+    #     # 출석부 첫 행에 요일 정보 추가
+    #     df = pd.read_excel(self.file_path, sheet_name = sheet_name)
         
-        if df['学年'][0] != '年月日':
-            # print(df['学年'][0])
-            # 이곳에 빈열 추가
-            empty = pd.DataFrame(index=range(0,1))
-            empty.loc[0,'学年'] = '年月日'
-            df = pd.concat([empty,df], axis=0)
-            with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
-                df.to_excel(writer,sheet_name=sheet_name, index=False)
+    #     if df['学年'][0] != '年月日':
+    #         # print(df['学年'][0])
+    #         # 이곳에 빈열 추가
+    #         empty = pd.DataFrame(index=range(0,1))
+    #         empty.loc[0,'学年'] = '年月日'
+    #         df = pd.concat([empty,df], axis=0)
+    #         with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
+    #             df.to_excel(writer,sheet_name=sheet_name, index=False)
 
     def update_qr_button_state(self, enabled=False):
         # QR 버튼 상태 업데이트(활성/비활성) - 出席調査 가 들어가있으면 비활성화 TODO[출석부 형태의 규칙을 따르면 활성화되도록 변경]
         if enabled:
-            self.qr_generate_btn.setEnabled(True)
-            self.qr_generate_btn.setStyleSheet("background-color: #4CAF50; color: white;")  # Active style
+            # self.qr_generate_btn.setEnabled(True)
+            # self.qr_generate_btn.setStyleSheet("background-color: #4CAF50; color: white;")  # Active style
             self.qr_btn.setEnabled(True)
             self.qr_btn.setStyleSheet("background-color: #4CAF50; color: white;")  # Active style
         else:
-            self.qr_generate_btn.setEnabled(False)
-            self.qr_generate_btn.setStyleSheet("background-color: lightgray; color: gray;")  # Disabled style
+            # self.qr_generate_btn.setEnabled(False)
+            # self.qr_generate_btn.setStyleSheet("background-color: lightgray; color: gray;")  # Disabled style
             self.qr_btn.setEnabled(False)
             self.qr_btn.setStyleSheet("background-color: lightgray; color: gray;")  # Disabled style
 
@@ -236,7 +236,7 @@ class MainWindow(QMainWindow):
         # 결과를 저장하는 메서드
         if self.file_path:
             results = []
-            today_date = datetime.now().strftime("%Y-%m-%d")
+            # today_date = datetime.now().strftime("%Y-%m-%d")
             for sheet_name in self.sheet_names:
                 if "出席調査" not in sheet_name:
                     try:
@@ -257,17 +257,18 @@ class MainWindow(QMainWindow):
                     except Exception as e:
                         print(f"Error processing sheet {sheet_name}: {e}")
 
-                # 결과를 DataFrame으로 변환
-            result_df = pd.DataFrame(results, columns=['クラス名', '学年', '学籍番号','氏名','欠席数','授業回数']) # 수업명, 학년, 학번, 이름, [가타가나 이름], 결석 수, [총 수업일 수]
+            #     # 결과를 DataFrame으로 변환
+            # result_df = pd.DataFrame(results, columns=['クラス名', '学年', '学籍番号','氏名','欠席数','授業回数']) # 수업명, 학년, 학번, 이름, [가타가나 이름], 결석 수, [총 수업일 수]
             
-            # 결과를 새로운 시트로 저장
-            with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
-                # writer.book = book  # 이미 로드한 워크북을 writer에 설정
-                result_df.to_excel(writer, sheet_name=f'出席調査_{today_date}', index=False)
+            # # 결과를 새로운 시트로 저장
+            # with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
+            #     # writer.book = book  # 이미 로드한 워크북을 writer에 설정
+            #     result_df.to_excel(writer, sheet_name=f'出席調査_{today_date}', index=False)
             self.load_sheet_names() # 시트 목록 갱신 -> 콤보박스에 出席調査_{today_date} 추가
         else:
             print("No file selected.")
 
+    # 주석 처리하였음.(미사용)
     def save_settings(self):
         # 설정 저장하는 메서드 -> 마지막 선택한 파일 경로, 시트명 저장
         settings = {
@@ -277,7 +278,7 @@ class MainWindow(QMainWindow):
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f)
 
-
+    # (미사용)
     def load_settings(self):
         # 설정을 불러오는 메서드
         if Path(SETTINGS_FILE).exists():
@@ -290,8 +291,8 @@ class MainWindow(QMainWindow):
                     self.load_sheet_names()
 
 # 테스트할때만 사용하는 부분
-if __name__ == "__main__":
-    app = QApplication(sys.argv) # QT 객체 생성
-    window = MainWindow() # 메인 윈도우 객체 생성
-    window.show() # 윈도우 표시
-    app.exec() # 실행.
+# if __name__ == "__main__":
+#     app = QApplication(sys.argv) # QT 객체 생성
+#     window = MainWindow() # 메인 윈도우 객체 생성
+#     window.show() # 윈도우 표시
+#     app.exec() # 실행.

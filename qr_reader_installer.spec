@@ -1,16 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+
 a = Analysis(
-    ['app.py'],
+    ['core\\qr_reader\\main.py'],
     pathex=[],
     binaries=[('./dlls/libiconv.dll', 'pyzbar'), ('./dlls/libzbar-64.dll', 'pyzbar'),('./dlls/qwindows.dll','qwindows')],
     datas=[
+        ('frontend', 'frontend'),
+        ('core','core'),
         ('./meiryo.ttc','./'),
         ('./scan_logo.png','./'),
         ('./loading.gif','./'),
         ('./beep.wav','./'),
-        ],
-    hiddenimports=['cv2', 'pyzbar','qwindows'],
+    ],
+    hiddenimports=['qwindows','pandas','json','qrcode','cv2','pyzbar.pyzbar','PyQt6.QtMultimedia', 'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -26,7 +29,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='QRCode',
+    name='main',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
