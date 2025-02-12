@@ -65,8 +65,11 @@ class ExcelDialog(QDialog):
     def load_data(self, file_path):
         # 엑셀 파일을 pandas DataFrame으로 불러오기
         xls = pd.ExcelFile(file_path)
-        self.df = pd.read_excel(xls, "QR")  # "QR" 시트를 가져옴
-
+        try:
+            self.df = pd.read_excel(xls, "QR")  # "QR" 시트를 가져옴
+        except:
+            self.show_error("선택한 파일에 QR 시트가 없습니다. SEPERATE로 생성된 파일을 선택하세요.")
+            return
         # 데이터 로딩 후 테이블에 표시
         self.display_table()
 
