@@ -10,12 +10,29 @@ from static.styles.styles import application_style, button_style, statusbar_styl
 from static.resources.resource_pathes.resource_pathes import save_icon_path, folder_icon_path
 
 import shutil
+import sys
 import os
 import pandas as pd
 import openpyxl
 from io import BytesIO
 import qrcode
+from qrcode.image.styledpil import StyledPilImage
+from qrcode.image.styles.moduledrawers.pil import RoundedModuleDrawer
 import json
+from PIL import Image,ImageDraw, ImageFont
+
+# 리소스 경로를 절대 경로로 반환
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS # PyInstaller 로 패키징된 경우 사용하는 base_path
+    except AttributeError:
+        base_path = os.path.abspath('.') # 개발 중에서 사용하는 base_path
+    return os.path.join(base_path, relative_path)
+font_path = resource_path("meiryo.ttc")
+try:
+    font = ImageFont.truetype(font_path,35)
+except IOError:
+    font = ImageFont.load_default()
 
 def _get_icon(icon_path: str) -> QIcon:
     icon: QIcon = QIcon()
@@ -201,22 +218,36 @@ class GuiMainWindow:
 
         # QR 코드 이미지를 엑셀 셀에 삽입
         row_num = 2  # 데이터는 첫 번째 행에 헤더가 있으므로 두 번째 행부터 시작
+        teacher_name_image = None
         for index, row in df_students.iterrows():
             qr_code_data = {
-                "学年": row["学年"],
-                "学籍番号": row["学籍番号"],
+                "担当教員名": row["担当教員名"], # 담당교수명
+                "学年": row["学年"], # 학생
+                "学籍番号": row["学籍番号"], # 학번
                 "氏名": row["氏名"],  # 이름
                 "カナ": row["カナ"],  # 이름 (カナ)
-                "メールアドレス": row["学生メールアドレス"]
+                "学生メールアドレス": row["学生メールアドレス"] # 학생 이메일
             }
-
+            if teacher_name_image == None:
+                teacher_name_image = self.create_text_to_image(qr_code_data["担当教員名"])
+                teacher_name_image = teacher_name_image.convert("RGBA")
             # 직렬화(문자열로 변환)
             qr_code = json.dumps(qr_code_data)
-            qr = qrcode.make(data=qr_code, box_size=9, border=4, version=1,error_correction=qrcode.constants.ERROR_CORRECT_L)
+            
+            # qr 코드 생성
+            qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L)
+            qr.add_data(qr_code)
+            qr_image = qr.make_image(image_factory=StyledPilImage, module_drawer = RoundedModuleDrawer())
+            # QR 코드의 중앙에 텍스트 이미지 삽입
+            qr_image = qr_image.convert("RGBA")
+
+            qr_image.paste(teacher_name_image, ((qr_image.size[0] - teacher_name_image.size[0]) // 2, (qr_image.size[1] - teacher_name_image.size[1]) // 2), teacher_name_image)
+
+            # qr = qrcode.make(data=qr_code, box_size=9, border=4, version=1,error_correction=qrcode.constants.ERROR_CORRECT_L)
 
             # QR 코드를 이미지로 변환하여 BytesIO로 저장
             img_byte_arr = BytesIO()
-            qr.save(img_byte_arr, "PNG")
+            qr_image.save(img_byte_arr, "PNG")
             img_byte_arr.seek(0)
 
             # QR 이미지를 openpyxl Image 객체로 변환
@@ -234,3 +265,17 @@ class GuiMainWindow:
           # 버튼 눌러 gui_email_window 창 띄우기
         # 4 수업별 QR 코드 체크기능은 이전에 구현된 코드를 사용. -> qr_reader
         pass
+
+    def create_text_to_image(self,info):
+        # getbbox()를 사용하여 텍스트의 크기를 계산합니다.
+        bbox = font.getbbox(info)  # 텍스트 경계 상자의 크기
+        width, height = bbox[2] - bbox[0], bbox[3] - bbox[1]  # (좌, 상, 우, 하)의 차이를 이용해 너비와 높이 계산
+
+        # 텍스트를 담을 이미지를 생성합니다.
+        img = Image.new("RGB", (width + 20, height + 10), color="white")
+        draw = ImageDraw.Draw(img)
+
+        # 텍스트를 이미지에 그립니다.
+        draw.text((10, 0), info, font=font, fill="black")
+        
+        return img
