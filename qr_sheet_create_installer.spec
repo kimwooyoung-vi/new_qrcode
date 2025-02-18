@@ -1,16 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+
 a = Analysis(
-    ['app.py'],
-    pathex=[],
-    binaries=[('./dlls/libiconv.dll', 'pyzbar'), ('./dlls/libzbar-64.dll', 'pyzbar'),('./dlls/qwindows.dll','qwindows')],
+    ['core\\qr_sheet_create\\main.py'],
+    pathex=['.'],
+    binaries=[],
     datas=[
-        ('./meiryo.ttc','./'),
-        ('./scan_logo.png','./'),
-        ('./loading.gif','./'),
-        ('./beep.wav','./'),
-        ],
-    hiddenimports=['cv2', 'pyzbar','qwindows'],
+        ('frontend', 'frontend'),
+        ('static', 'static'),
+    ],
+    hiddenimports=['openpyxl','qrcode','pandas','json'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -26,7 +25,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='QRCode',
+    name='qr_sheet_create&email_send',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

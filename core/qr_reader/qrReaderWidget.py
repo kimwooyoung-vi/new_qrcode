@@ -12,7 +12,7 @@ import logging
 import pandas as pd
 import numpy as np
 from PIL import ImageFont, ImageDraw, Image
-
+import json
 
 # 락 상태 해결을 위해 스레드 사용
 class CameraThread(QThread):
@@ -80,7 +80,7 @@ class CameraViewer(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        
+        self.json_decoder = json.decoder.JSONDecoder()
         # 윈도우 크기 및 타이틀 설정
         self.resize(600,600)
         self.current_sheet = self.parent().current_sheet
@@ -93,6 +93,9 @@ class CameraViewer(QDialog):
         self.selected = None
         self.current_no = ""
         self.current_name = ""
+
+        # 출석부 실행 시간 저장
+        self.current_date = datetime.now().strftime("%Y/%m/%d")
 
         # 레이아웃 설정
         layout = QVBoxLayout()
@@ -114,12 +117,12 @@ class CameraViewer(QDialog):
         self.message_label.setText(" ")
         layout.addWidget(self.message_label)
 
-        # 몇 차시인지 선택하는 콤보박스
-        self.select_time = QComboBox()
-        self.load_times() # 
-        self.select_time.currentIndexChanged.connect(self.update_times)
-        layout.addWidget(self.select_time)
-
+        # 몇 차시인지 선택하는 콤보박스 -> 250211 에서는 필요하지 않아 제거.
+        # self.select_time = QComboBox()
+        # self.load_times() # 
+        # self.select_time.currentIndexChanged.connect(self.update_times)
+        # layout.addWidget(self.select_time)
+        
         # 카메라 화면 및 로딩 화면을 스택하기 위한 레이아웃 ( 카메라 화면 앞에 로딩 이미지를 겹쳐 불러옴)
         self.stack_layout = QStackedLayout()
         self.stack_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -138,7 +141,6 @@ class CameraViewer(QDialog):
         self.loading_label.setMovie(self.movie)
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.stack_layout.addWidget(self.loading_label)
-        # self.loading_label.setVisible(False)
         self.movie.start()
         layout.addLayout(self.stack_layout)
 
@@ -162,6 +164,8 @@ class CameraViewer(QDialog):
         self.message_timer.setSingleShot(True)
         self.message_timer.timeout.connect(lambda: self.message_label.setText(" "))
 
+        self.camera_Run()
+
 
     def show_loading(self, show=True):
         # 로딩 화면 표시
@@ -174,6 +178,7 @@ class CameraViewer(QDialog):
         # 카메라 준비 완료 시 로딩 화면 숨기기
         self.show_loading(False)
 
+    # 차수 선택하는 기능 제거
     def update_times(self):
         # 시간 선택 변경 시
         self.selected = self.select_time.currentText().strip()
@@ -182,6 +187,10 @@ class CameraViewer(QDialog):
             if not self.camera_thread.isRunning():
                 self.show_loading(True)
             self.start_camera()
+    def camera_Run(self):
+        if not self.camera_thread.isRunning():
+            self.show_loading(True)
+        self.start_camera()
 
     def load_times(self):
         # 시간 목록 로딩
@@ -197,7 +206,14 @@ class CameraViewer(QDialog):
     def update_frame(self, q_img:np.ndarray):
         # 카메라 프레임 업데이트
         frame = self.read_frame(q_img)
-        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        if frame is None:
+            # print("Error: Frame empty")
+            return
+        try:
+            rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        except cv2.error as e:
+            print(e)
+            return
         h, w, ch = rgb_image.shape
         q_img = QImage(rgb_image.data, w, h, ch * w, QImage.Format.Format_RGB888)
         self.video_label.setPixmap(QPixmap.fromImage(q_img))
@@ -208,10 +224,18 @@ class CameraViewer(QDialog):
             barcodes = decode(frame)
             for barcode in barcodes:
                 x, y, w, h = barcode.rect
-                barcode_info = barcode.data.decode('utf-8')
-                barcode_array = barcode_info.split(',') # 학번, 이름
-                self.current_no = barcode_array[0] # 번호
-                self.current_name = barcode_array[1] # 이름
+                barcode_info = barcode.data.decode('unicode_escape')
+                info = self.json_decoder.decode(barcode_info)
+                grade = info['学年']
+                student_no = info['学籍番号']
+                name1 = info['氏名']
+                name2 = info['カナ']
+                email = info['メールアドレス']
+                self.current_no = student_no
+                self.current_name = name1
+                # barcode_array = barcode_info.split(',') # 학번, 이름
+                # self.current_no = barcode_array[0] # 번호
+                # self.current_name = barcode_array[1] # 이름
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
                 # QR 코드가 읽혔을 때 출석 처리
                 if (self.message_label.text() == " "):
@@ -231,33 +255,42 @@ class CameraViewer(QDialog):
         self.close_camera()
         super().closeEvent(event)
 
-        # 변경사항이 있으면 x 채우고 저장,없으면 그냥 닫기
+        # 변경사항이 있으면 시트에 반영, 없으면 그냥 종료
         if not self.isChanged:
             super().closeEvent(event)
             return
 
-        if self.current_sheet and self.selected:
-            for idx, row in self.df_sheet.iterrows():
-                if row[self.selected] != str('o'):
-                    self.df_sheet.at[idx, self.selected] = str('x')
-        if self.df_sheet[self.selected][0] == str('x'):
-            date_now = datetime.now().strftime('%Y/%m/%d')
-            self.df_sheet.at[0,self.selected] = str(date_now)
+        # 종합 출결 시트(出席調査)에 변경사항이 있으면 변경사항 저장 -> 나중에 구현
+        # self.df_sheet 의 내용을 出席調査시트에 반영
+        attendance_sheet = pd.read_excel(self.file_path, sheet_name="出席調査")
+        for index, row in self.df_sheet.iterrows():
+            student_id = row['学籍番号']
+            student_name = row['氏名']
+            class_name = self.current_sheet
+            # 学籍番号(학번), 氏名(이름), クラス名(과목명)으로 학생 찾기기
+            student_row = attendance_sheet[(attendance_sheet['学籍番号'] == student_id) & (attendance_sheet['氏名'] == student_name) & (attendance_sheet['クラス名'] == class_name)]
+            if not student_row.empty:
+                student_index = student_row.index[0]
+                # 
+                attendance_sheet.at[student_index, '授業回数'] = row['授業回数'] # 출석 일수 업데이트
+                attendance_sheet.at[student_index, '欠席数'] = row['欠席数'] # 결석 일수 업데이트
+
+        # 변경사항 반영
         with pd.ExcelWriter(self.file_path, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
             self.df_sheet.to_excel(writer, sheet_name=self.current_sheet, index=False)
-            
+            attendance_sheet.to_excel(writer, sheet_name="出席調査", index=False)
         self.qrProcessed.emit()
 
-    def update_column_name(self, col_name):
-        start_idx = col_name.find('(')
-        end_idx = col_name.find(')')
-        current_date = datetime.now().strftime("%y%m%d")
-        if start_idx != -1 and end_idx != -1:
-            new_name = f"{col_name[:start_idx]({current_date})}"
-            return new_name
-        else:
-            new_name = f"{col_name}({current_date})"
-            return new_name
+    # def update_column_name(self, col_name):
+    #     start_idx = col_name.find('(')
+    #     end_idx = col_name.find(')')
+    #     current_date = datetime.now().strftime("%y%m%d")
+    #     if start_idx != -1 and end_idx != -1:
+    #         new_name = f"{col_name[:start_idx]({current_date})}"
+    #         return new_name
+    #     else:
+    #         new_name = f"{col_name}({current_date})"
+    #         return new_name
 
     def show_temporary_message(self, message, duration=3500):
         # 출석 체크 메세지 표시 
@@ -266,12 +299,12 @@ class CameraViewer(QDialog):
             self.message_timer.stop()
         self.message_label.setText(message)
         self.message_timer.start(duration)
-
+    # 授業回数(출석일수) 열 업데이트, 결석 일수 업데이트는 시트 종료시에 처리(?) 잘 모르겠음
     def updateAttendance(self):
         # 출석 처리
         student_id = self.current_no
         student_name = self.current_name
-
+        print(student_id, student_name)
         if not student_id or not student_name:
             return
         
@@ -283,18 +316,28 @@ class CameraViewer(QDialog):
         student_row = self.df_sheet[
             (self.df_sheet['学籍番号'] == student_id) & (self.df_sheet['氏名'] == student_name)
         ]
-
         if not student_row.empty:
             student_index = student_row.index[0]
-            current_value = self.df_sheet.at[student_index, self.selected]
+            current_value = student_row['출석시간'].values[0]
 
-            if current_value != str('o'):
+            try:
+                current_value = current_value.split()[0]
+            except:
+                print("날짜 데이터가 아님.")
+
+            # 시간 기준으로 출석 처리 같은 날 출석 처리되었으면 다시 출석 처리하지 않음
+            if current_value != self.current_date:
                 # 출석 처리
-                self.df_sheet.at[student_index, self.selected] = str('o')
+                self.df_sheet.at[student_index, '출석시간'] = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                # 초기값이 없는 경우 0으로 초기화
+                if pd.isna(self.df_sheet.at[student_index, '授業回数']):
+                    self.df_sheet.at[student_index, '授業回数'] = 0  # 초기값 0으로 설정
+                self.df_sheet.at[student_index, '授業回数'] += 1
                 # self.processed_students.add(student_id)
                 # self.qr_label.setText(f"{student_id} Attendance has been recorded.")
                 self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
                 self.sound.play()
+                self.qrProcessed.emit()
             else:
                 self.show_temporary_message(f"{student_id}, {student_name} Already Checked.")
                 # self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
