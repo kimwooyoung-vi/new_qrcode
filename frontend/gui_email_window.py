@@ -34,10 +34,15 @@ class ExcelDialog(QDialog):
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         layout.addWidget(self.password_input)
 
-        self.subject_label = QLabel('제목:', self)
+        self.subject_label = QLabel('Title:', self)
         layout.addWidget(self.subject_label)
         self.subject_input = QLineEdit(self)
         layout.addWidget(self.subject_input)
+
+        self.body_label = QLabel('Content:', self)
+        layout.addWidget(self.body_label)
+        self.body_input = QLineEdit(self)
+        layout.addWidget(self.body_input)
 
         # 이메일 전송 버튼
         self.send_button = QPushButton('이메일 보내기', self)
@@ -89,13 +94,17 @@ class ExcelDialog(QDialog):
         self.table_widget.selectAll()
 
     def send_email(self):
+        # 메일 서버 연결에 사용되는 값
         user_email = self.email_input.text()
         user_password = self.password_input.text()
+        # 메일 제목, 내용
         subject = self.subject_input.text()
+        body = self.body_input.text()
 
         # SMTP 서버 설정 (예: Gmail)
         smtp_server = "smtp.gmail.com"
-        smtp_port = 587
+        smtp_port = 465
+        # smtp_port = 587
 
         try:
 
@@ -146,7 +155,7 @@ class ExcelDialog(QDialog):
                 message['Subject'] = subject
 
                 # 이메일 본문 작성
-                body = "이 이메일은 PyQt6을 사용하여 전송되었습니다. 아래에 출석에 사용될 QR 이미지를 첨부합니다."
+                
                 message.attach(MIMEText(body, 'plain'))
 
                 # QR 이미지를 첨부
