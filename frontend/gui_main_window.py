@@ -67,7 +67,7 @@ class GuiMainWindow:
         self.header_layout = QHBoxLayout()
 
         # 제목 라벨 추가
-        self.title_label = QLabel("VisionInside QR 시스템", self.central_widget)
+        self.title_label = QLabel(" QR 出欠システム", self.central_widget)
         self.title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.header_layout.addWidget(self.title_label)
@@ -79,31 +79,31 @@ class GuiMainWindow:
         self.button_layout = QVBoxLayout()
 
         # 엑셀 파일 선택 버튼 추가
-        self.load_button = QPushButton("엑셀 파일 선택", self.central_widget)
+        self.load_button = QPushButton("エクセルファイル選択", self.central_widget)
         self.load_button.setIcon(_get_icon(icon_path=folder_icon_path))  # 버튼 아이콘
         self.load_button.setFont(QFont("Arial", 12))
         self.load_button.clicked.connect(self.select_excel_file)
         self.button_layout.addWidget(self.load_button)
         
         # 선택된 파일 표시를 위한 레이블 추가
-        self.loaded_file_label = QLabel("선택된 파일: 아직 선택되지 않음", self.central_widget)
+        self.loaded_file_label = QLabel("選択されたファイル：まだ選択されてないです。", self.central_widget)
         self.loaded_file_label.setFont(QFont("Arial", 12))
         self.button_layout.addWidget(self.loaded_file_label)
 
         # 저장할 위치 선택 버튼 추가
-        self.save_button = QPushButton("저장 위치 선택", self.central_widget)
+        self.save_button = QPushButton("保存場所選択", self.central_widget)
         self.save_button.setIcon(_get_icon(icon_path=save_icon_path))  # 버튼 아이콘
         self.save_button.setFont(QFont("Arial", 12))
         self.save_button.clicked.connect(self.select_save_location)
         self.button_layout.addWidget(self.save_button)
 
         # 저장 위치 표시를 위한 레이블 추가
-        self.save_location_label = QLabel("저장 위치: 아직 선택되지 않음", self.central_widget)
+        self.save_location_label = QLabel("保存場所：まだ選択されてないです。", self.central_widget)
         self.save_location_label.setFont(QFont("Arial", 12))
         self.button_layout.addWidget(self.save_location_label)
 
         # SEPERATE 파일 생성 버튼 추가
-        self.seperate_button = QPushButton("SEPERATE 파일 생성", self.central_widget)
+        self.seperate_button = QPushButton("SEPERATE ファイル生成", self.central_widget)
         self.seperate_button.setFont(QFont("Arial", 12))
         self.seperate_button.clicked.connect(self.create_seperate_file)
         self.button_layout.addWidget(self.seperate_button)
@@ -114,7 +114,7 @@ class GuiMainWindow:
         self.button_layout.addWidget(self.send_email_button)
 
         # 종료 버튼 추가
-        self.exit_button = QPushButton("종료", self.central_widget)
+        self.exit_button = QPushButton("終了", self.central_widget)
         self.exit_button.setIcon(_get_icon("path/to/exit_icon.png"))  # 버튼 아이콘
         self.exit_button.setFont(QFont("Arial", 12))
         self.exit_button.clicked.connect(MainWindow.close)
@@ -154,41 +154,41 @@ class GuiMainWindow:
     def select_excel_file(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
             None,
-            "엑셀 파일 선택",
+            "エクセルファイル選択",
             "",
             "Excel Files (*.xlsx *.xls)"
         )
         self.file_path = file_path
         if file_path:
             # self.status_bar.showMessage(f"선택된 파일: {file_path}", 5000)
-            self.loaded_file_label.setText(f"선택된 파일: {file_path}")
+            self.loaded_file_label.setText(f"選択されたファイル： {file_path}")
 
     def select_save_location(self) -> None:
         folder_path = QFileDialog.getExistingDirectory(
             None,
-            "저장할 위치 선택"
+            "保存場所選択"
         )
         self.folder_path = folder_path
         if folder_path:
             # 저장 위치 레이블 업데이트
-            self.save_location_label.setText(f"저장 위치: {folder_path}")
+            self.save_location_label.setText(f"保存場所 : {folder_path}")
 
     def create_seperate_file(self) -> None:
         # SEPERATE 파일 생성 로직
         # 1. 원본 파일 복사 -> 
         #    원본 파일은 변경되지 않도록 복사본을 생성하여 사용
-        self.status_bar.showMessage("원본 파일 복사 중...", 1000)
+        self.status_bar.showMessage("原本ファイルコピー中...", 1000)
         new_file_name = f"{os.path.basename(self.file_path).split('.xlsx')[0]}_SEPERATE.xlsx"
         new_file_path = os.path.join(self.folder_path, new_file_name)
         shutil.copy2(self.file_path, new_file_path)
-        self.status_bar.showMessage(f"원본 파일 복사 완료: {new_file_path}", 1000)
+        self.status_bar.showMessage(f"原本ファイルコピー完了: {new_file_path}", 1000)
         # 2. "出席調査" 이름의 시트에서 "クラス名"을 기준으로 그룹화
-        self.status_bar.showMessage("과목 시트 분리 중...", 5000)
+        self.status_bar.showMessage("科目シート分離中...", 5000)
 
         xls = pd.ExcelFile(new_file_path)
 
         if "出席調査" not in xls.sheet_names:
-            self.status_bar.showMessage("出席調査 이름의 시트가 없습니다.", 2000)
+            self.status_bar.showMessage("出席調査 という名のシートがありません。", 2000)
             return
         
         df = pd.read_excel(new_file_path, sheet_name="出席調査")
@@ -198,19 +198,19 @@ class GuiMainWindow:
             for name, group in grouped:
                 # 2-2. 각 시트를 16개 칸으로 구분하여 저장(기존에서 마지막 열만 삭제하면 p(16)까지 있음)
                 group.drop("@std.nagaokauniv.ac.jp", axis=1, inplace=True)
-                group['출석시간']= pd.NA
+                group['出席時間']= pd.NA
                 group.to_excel(writer, sheet_name=name, index=False)
-        self.status_bar.showMessage(f"과목별 시트 분리 완료: {new_file_path}", 1000)
+        self.status_bar.showMessage(f"科目別シート分離完了: {new_file_path}", 1000)
         # 3. 제공받은 원본에서 당담교수명, 학년, 학번, 이름, 이메일주소(担当教員名, 学年,学籍番号,氏名カナ)를 추출하고 중복 필드(학번기준(学籍番号))를 제거한 내용을 QR시트를추가하고 QR를 자동생성한다.
         # 3. 전체 시트에서 중복되지 않은 학생 정보를 기반으로 QR코드 생성성\
-        self.status_bar.showMessage("QR코드 생성 중...", 5000)
+        self.status_bar.showMessage("QRコート生成中...", 5000)
         df_students = df[["担当教員名", "学年", "学籍番号", "氏名","カナ","学生メールアドレス"]].drop_duplicates(subset="学籍番号")
         
         # pandas로 엑셀 파일에 학생 정보를 먼저 저장
         with pd.ExcelWriter(new_file_path, engine="openpyxl", mode='a') as writer:
             df_students['QR']=pd.NA
             df_students.to_excel(writer, sheet_name="QR", index=False)
-        self.status_bar.showMessage(f"QR코드 포함 시트 생성 완료: {new_file_path}", 1000)
+        self.status_bar.showMessage(f"QRコートシート生成完了: {new_file_path}", 1000)
 
         # openpyxl로 엑셀 파일 열기 (이미지 삽입을 위해)
         wb = openpyxl.load_workbook(new_file_path)
@@ -260,7 +260,7 @@ class GuiMainWindow:
             qr_sheet.add_image(img, f"G{row_num}")  # F열에 QR 코드 삽입
             row_num += 1
         wb.save(new_file_path)
-        self.status_bar.showMessage(f"모든 작업 완료: {new_file_path}")
+        self.status_bar.showMessage(f"全作業完了: {new_file_path}")
         # 3.2 이메일로 교수한테 전송 -> 이메일과 패스워드를 받기
           # 버튼 눌러 gui_email_window 창 띄우기
         # 4 수업별 QR 코드 체크기능은 이전에 구현된 코드를 사용. -> qr_reader
