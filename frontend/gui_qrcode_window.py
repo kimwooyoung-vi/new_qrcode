@@ -116,11 +116,22 @@ class MainWindow(QMainWindow):
         # self.load_settings()
         self.update_qr_button_state()
 
+    def closeEvent(self, event):
+        if self.qr_reader_window and self.qr_reader_window.isVisible():
+            # Show a warning message if the dialog is still open
+            reply = QMessageBox.warning(
+                self, "Warning", "Please close the QR reader dialog before closing the main window.",
+                QMessageBox.StandardButton.Ok
+            )
+            event.ignore()  # Ignore the close event if dialog is still open
+        else:
+            event.accept()  # Allow closing if dialog is not open
+
     def qr_window(self):
         # QR 읽기 화면(창)을 띄움. -> qrReaderWidget.py에 정의됨.
-        qr_reader_window = CameraViewer(self)
-        qr_reader_window.qrProcessed.connect(self.handle_qr_processed)
-        qr_reader_window.show()
+        self.qr_reader_window = CameraViewer(self)
+        self.qr_reader_window.qrProcessed.connect(self.handle_qr_processed)
+        self.qr_reader_window.show()
         # pass
 
     def handle_qr_processed(self):

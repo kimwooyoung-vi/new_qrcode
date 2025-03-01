@@ -226,16 +226,14 @@ class CameraViewer(QDialog):
                 x, y, w, h = barcode.rect
                 barcode_info = barcode.data.decode('unicode_escape')
                 info = self.json_decoder.decode(barcode_info)
-                grade = info['学年']
+                # grade = info['学年']
                 student_no = info['学籍番号']
-                name1 = info['氏名']
-                name2 = info['カナ']
-                email = info['メールアドレス']
+                # name1 = info['氏名']
+                # name2 = info['カナ']
+                # email = info['学生メールアドレス']
                 self.current_no = student_no
-                self.current_name = name1
+                # self.current_name = name1
                 # barcode_array = barcode_info.split(',') # 학번, 이름
-                # self.current_no = barcode_array[0] # 번호
-                # self.current_name = barcode_array[1] # 이름
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 1)
                 # QR 코드가 읽혔을 때 출석 처리
                 if (self.message_label.text() == " "):
@@ -303,9 +301,9 @@ class CameraViewer(QDialog):
     def updateAttendance(self):
         # 출석 처리
         student_id = self.current_no
-        student_name = self.current_name
-        print(student_id, student_name)
-        if not student_id or not student_name:
+        # student_name = self.current_name
+        print(student_id)
+        if not student_id:
             return
         
         # 학번, 이름 공백 제거
@@ -314,11 +312,11 @@ class CameraViewer(QDialog):
 
         # 시트(데이터 프레임)에서 일치하는 학생 찾기
         student_row = self.df_sheet[
-            (self.df_sheet['学籍番号'] == student_id) & (self.df_sheet['氏名'] == student_name)
+            (self.df_sheet['学籍番号'] == student_id)
         ]
         if not student_row.empty:
             student_index = student_row.index[0]
-            current_value = student_row['출석시간'].values[0]
+            current_value = student_row['出席時間'].values[0]
 
             try:
                 current_value = current_value.split()[0]
@@ -328,18 +326,18 @@ class CameraViewer(QDialog):
             # 시간 기준으로 출석 처리 같은 날 출석 처리되었으면 다시 출석 처리하지 않음
             if current_value != self.current_date:
                 # 출석 처리
-                self.df_sheet.at[student_index, '출석시간'] = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+                self.df_sheet.at[student_index, '出席時間'] = datetime.now().strftime('%Y/%m/%d %H:%M:%S')
                 # 초기값이 없는 경우 0으로 초기화
                 if pd.isna(self.df_sheet.at[student_index, '授業回数']):
                     self.df_sheet.at[student_index, '授業回数'] = 0  # 초기값 0으로 설정
                 self.df_sheet.at[student_index, '授業回数'] += 1
                 # self.processed_students.add(student_id)
                 # self.qr_label.setText(f"{student_id} Attendance has been recorded.")
-                self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
+                self.show_temporary_message(f"{student_id}, {student_row['氏名'].values[0]} Attendance has been recorded.")
                 self.sound.play()
                 self.qrProcessed.emit()
             else:
-                self.show_temporary_message(f"{student_id}, {student_name} Already Checked.")
+                self.show_temporary_message(f"{student_id}, {student_row['氏名'].values[0]} Already Checked.")
                 # self.show_temporary_message(f"{student_id}, {student_name} Attendance has been recorded.")
                 return
         else:

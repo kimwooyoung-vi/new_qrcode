@@ -198,7 +198,7 @@ class GuiMainWindow:
             for name, group in grouped:
                 # 2-2. 각 시트를 16개 칸으로 구분하여 저장(기존에서 마지막 열만 삭제하면 p(16)까지 있음)
                 group.drop("@std.nagaokauniv.ac.jp", axis=1, inplace=True)
-                group['出席時間']= pd.NA
+                group['出席時間']= pd.NA # 출석시간이라는 열을 추가하고 NA로 채움
                 group.to_excel(writer, sheet_name=name, index=False)
         self.status_bar.showMessage(f"科目別シート分離完了: {new_file_path}", 1000)
         # 3. 제공받은 원본에서 당담교수명, 학년, 학번, 이름, 이메일주소(担当教員名, 学年,学籍番号,氏名カナ)를 추출하고 중복 필드(학번기준(学籍番号))를 제거한 내용을 QR시트를추가하고 QR를 자동생성한다.
@@ -222,11 +222,11 @@ class GuiMainWindow:
         for index, row in df_students.iterrows():
             qr_code_data = {
                 "担当教員名": row["担当教員名"], # 담당교수명
-                "学年": row["学年"], # 학생
+                # "学年": row["学年"], # 학생
                 "学籍番号": row["学籍番号"], # 학번
-                "氏名": row["氏名"],  # 이름
-                "カナ": row["カナ"],  # 이름 (カナ)
-                "学生メールアドレス": row["学生メールアドレス"] # 학생 이메일
+                # "氏名": row["氏名"],  # 이름
+                # "カナ": row["カナ"],  # 이름 (カナ)
+                # "学生メールアドレス": row["学生メールアドレス"] # 학생 이메일
             }
             if teacher_name_image == None:
                 teacher_name_image = self.create_text_to_image(qr_code_data["担当教員名"])

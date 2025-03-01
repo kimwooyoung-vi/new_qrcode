@@ -107,7 +107,7 @@ class ExcelDialog(QDialog):
         smtp_server = "smtp.gmail.com"
         smtp_port = 465
         # smtp_port = 587
-
+        fail_list = []
         try:
 
             # 선택된 셀들에 대해서 이메일 전송
@@ -169,14 +169,25 @@ class ExcelDialog(QDialog):
                 message.attach(image)
 
                 # 이메일 전송
-                server.send_message(message)
-                print("From: ", user_email, "To: ", to_email, "メール送信完了")
+                try:
+                    server.send_message(message)
+                    print("From: ", user_email, "To: ", to_email, "メール送信完了")
+                except Exception as e:
+                    print("メール送信エラー：", e)
+                    fail_list.append(to_email)
+                    continue
 
             # 서버 종료
             server.quit()
 
-            print("メール送信完了！")
-            self.show_error("メールが正しく送信できました！")
+            # print("メール送信完了！")
+            # self.show_error("メールが正しく送信できました！")
+            if len(fail_list) > 0:
+                print("以下のメールアドレスにメール送信に失敗しました：", fail_list)
+                self.show_error("以下のメールアドレスにメール送信に失敗しました：\n" + "\n".join(fail_list))
+            elif len(fail_list) == 0:
+                print("全てのメールが正しく送信されました！")
+                self.show_error("全てのメールが正しく送信されました！")
 
         except Exception as e:
             print(f"送信エラー： {e}")
